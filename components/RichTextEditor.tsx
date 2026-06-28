@@ -2,14 +2,13 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import TextStyle from "@tiptap/extension-text-style";
+import { TextStyle } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import Highlight from "@tiptap/extension-highlight";
 import TextAlign from "@tiptap/extension-text-align";
-import Underline from "@tiptap/extension-underline";
-import Table from "@tiptap/extension-table";
+import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
-import TableCell from "@tiptap/extension-table-cell";
+import { TableCellWithBackground as TableCell } from "@/lib/tiptap-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import { useState } from "react";
 
@@ -18,6 +17,7 @@ const TEXT_COLORS = [
   { label: "Dark green", value: "#14532d" },
   { label: "Navy blue", value: "#1e3a8a" },
   { label: "Mustard orange", value: "#b45309" },
+  { label: "Black", value: "#000000" },
 ];
 
 const HIGHLIGHT_COLORS = [
@@ -40,7 +40,6 @@ export default function RichTextEditor({ content, onChange }: RichTextEditorProp
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Underline,
       TextStyle,
       Color,
       Highlight.configure({ multicolor: true }),
@@ -60,6 +59,7 @@ export default function RichTextEditor({ content, onChange }: RichTextEditorProp
   if (!editor) return null;
 
   function insertTable() {
+    if (!editor) return;
     editor
       .chain()
       .focus()
@@ -69,6 +69,7 @@ export default function RichTextEditor({ content, onChange }: RichTextEditorProp
   }
 
   function setCellBackground(color: string) {
+    if (!editor) return;
     editor.chain().focus().setCellAttribute("backgroundColor", color).run();
   }
 
@@ -150,10 +151,18 @@ export default function RichTextEditor({ content, onChange }: RichTextEditorProp
         <div className="h-5 w-px bg-gray-300" />
 
         {/* Lists */}
-        <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={btnClass(editor.isActive("bulletList"))}>
+        <button
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          className={btnClass(editor.isActive("bulletList"))}
+        >
           • List
         </button>
-        <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={btnClass(editor.isActive("orderedList"))}>
+        <button
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          className={btnClass(editor.isActive("orderedList"))}
+        >
           1. List
         </button>
 
@@ -216,7 +225,7 @@ export default function RichTextEditor({ content, onChange }: RichTextEditorProp
       {/* Editable content area */}
       <EditorContent
         editor={editor}
-        className="prose prose-sm max-w-none p-3 [&_.ProseMirror]:min-h-[100px] [&_.ProseMirror]:outline-none [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-gray-300 [&_td]:p-2 [&_th]:border [&_th]:border-gray-300 [&_th]:p-2"
+        className="prose prose-sm max-w-none p-3 [&_.ProseMirror]:min-h-25 [&_.ProseMirror]:outline-none [&_.ProseMirror]:text-black [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-gray-300 [&_td]:p-2 [&_th]:border [&_th]:border-gray-300 [&_th]:p-2"
       />
     </div>
   );

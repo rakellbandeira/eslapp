@@ -1,0 +1,140 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  points: number;
+  // correctIndex intentionally NOT sent to students — see API note below
+}
+
+interface Attempt {
+  score: number;
+  maxScore: number;
+  answers: number[];
+  completedAt: string;
+}
+
+export default function TakeQuizPage() {
+  const params = useParams();
+  const submoduleId = params.submoduleId as string;
+
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [answers, setAnswers] = useState<(number | null)[]>([]);
+  const [existingAttempt, setExistingAttempt] = useState<Attempt | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      const [quizRes, attemptRes] = await Promise.all([
+        fetch(`/api/submodules/${submoduleId}/quiz`),
+        fetch(`/api/submodules/${submoduleId}/quiz/attempt`),
+      ]);
+
+      const quizData = await quizRes.json();
+      const attemptData = await attemptRes.json();
+
+      setQuestions(quizData.questions || []);
+      setAnswers(new Array((quizData.questions || []).length).fill(null));
+      setExistingAttempt(attemptData.attempt);
+      setIsLoading(false);
+    }
+    load();
+  }, [submoduleId]);
+
+  function selectAnswer(qIndex: number, optionIndex: number) {
+    const next = [...answers];
+    next[qIndex] = optionIndex;
+    setAnswers(next);
+  }
+
+  async function handleSubmit() {
+    if (answers.some((a) => a === null)) {
+      setError("Please answer every question before submitting.");
+      return;
+    }
+
+    setError("");
+    setIsSubmitting(true);
+
+    const res = await fetch(`/api/submodules/${submoduleId}/quiz/attempt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error || "Could not submit quiz.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    setExistingAttempt(data);
+    setIsSubmitting(false);
+  }
+
+  if (isLoading) return <p className="p-8 text-gray-500">Loading quiz...</p>;
+
+  if (existingAttempt) {
+    return (
+      <div className="mx-auto max-w-2xl p-8">
+        <div className="rounded-lg border border-green-200 bg-green-50 p-6 text-center">
+          <p className="text-sm text-green-700">Quiz completed</p>
+          <p className="mt-1 text-3xl font-semibold text-green-800">
+            {existingAttempt.score} / {existingAttempt.maxScore}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl p-8">
+      <h1 className="mb-6 text-2xl font-semibold text-gray-900">Quiz</h1>
+
+      <div className="space-y-4">
+        {questions.map((q, qIndex) => (
+          <div key={qIndex} className="rounded-lg border border-gray-200 bg-white p-4">
+            <p className="mb-3 font-medium text-gray-900">
+              {qIndex + 1}. {q.question}
+            </p>
+            <div className="space-y-2">
+              {q.options.map((opt, oIndex) => (
+                <label
+                  key={oIndex}
+                  className="flex items-center gap-2 rounded-md border border-gray-200 p-2 hover:bg-gray-50"
+                >
+                  <input
+                    type="radio"
+                    name={`q-${qIndex}`}
+                    checked={answers[qIndex] === oIndex}
+                    onChange={() => selectAnswer(qIndex, oIndex)}
+                  />
+                  <span className="text-sm text-gray-800">{opt}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {error && (
+        <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
+
+      <button
+        onClick={handleSubmit}
+        disabled={isSubmitting}
+        className="mt-6 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+      >
+        {isSubmitting ? "Submitting..." : "Submit quiz"}
+      </button>
+    </div>
+  );
+}
