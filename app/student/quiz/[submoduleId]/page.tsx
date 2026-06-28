@@ -7,7 +7,6 @@ interface QuizQuestion {
   question: string;
   options: string[];
   points: number;
-  // correctIndex intentionally NOT sent to students — see API note below
 }
 
 interface Attempt {
@@ -27,9 +26,17 @@ export default function TakeQuizPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [courseId, setCourseId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
+      const submoduleRes = await fetch(`/api/submodules/${submoduleId}`);
+      const submoduleData = await submoduleRes.json();
+
+      const moduleRes = await fetch(`/api/modules/${submoduleData.moduleId}`);
+      const moduleData = await moduleRes.json();
+      setCourseId(moduleData.courseId);
+
       const [quizRes, attemptRes] = await Promise.all([
         fetch(`/api/submodules/${submoduleId}/quiz`),
         fetch(`/api/submodules/${submoduleId}/quiz/attempt`),
@@ -77,6 +84,14 @@ export default function TakeQuizPage() {
 
     setExistingAttempt(data);
     setIsSubmitting(false);
+
+    if (courseId) {
+      await fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId, submoduleId, markComplete: true }),
+      });
+    }
   }
 
   if (isLoading) return <p className="p-8 text-gray-500">Loading quiz...</p>;

@@ -23,24 +23,30 @@ export default function StudentPdfExercisePage() {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"idle" | "unsaved" | "saving" | "saved" | "error">("idle");
+  const [courseId, setCourseId] = useState<string | null>(null);
+  const [hasMarkedComplete, setHasMarkedComplete] = useState(false);
 
-  // Tracks the single pending autosave timer so we can always cancel the previous
-  // one before starting a new one — this is the piece that was missing before.
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Always holds the LATEST annotations, even mid-debounce, so a manual save
-  // or a late-firing autosave never sends stale data.
-  const latestAnnotations = useRef<Annotation[]>(annotations);
+  const latestAnnotations = useRef<Annotation[]>([]);
 
   useEffect(() => {
-    fetch(`/api/pdf-exercises/${submoduleId}/submission`)
-      .then((res) => res.json())
-      .then((data) => {
-        setExercise(data.exercise);
-        const loaded = data.submission?.annotations || [];
-        setAnnotations(loaded);
-        latestAnnotations.current = loaded;
-        setIsLoading(false);
-      });
+    async function load() {
+      const submoduleRes = await fetch(`/api/submodules/${submoduleId}`);
+      const submoduleData = await submoduleRes.json();
+
+      const moduleRes = await fetch(`/api/modules/${submoduleData.moduleId}`);
+      const moduleData = await moduleRes.json();
+      setCourseId(moduleData.courseId);
+
+      const res = await fetch(`/api/pdf-exercises/${submoduleId}/submission`);
+      const data = await res.json();
+      setExercise(data.exercise);
+      const loaded = data.submission?.annotations || [];
+      setAnnotations(loaded);
+      latestAnnotations.current = loaded;
+      setIsLoading(false);
+    }
+    load();
   }, [submoduleId]);
 
   async function saveToServer(toSave: Annotation[]) {
@@ -53,6 +59,15 @@ export default function StudentPdfExercisePage() {
       });
       if (!res.ok) throw new Error("Save failed");
       setSaveStatus("saved");
+
+      if (courseId && !hasMarkedComplete) {
+        await fetch("/api/progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseId, submoduleId, markComplete: true }),
+        });
+        setHasMarkedComplete(true);
+      }
     } catch (err) {
       console.error("Save error:", err);
       setSaveStatus("error");
@@ -64,8 +79,6 @@ export default function StudentPdfExercisePage() {
     latestAnnotations.current = next;
     setSaveStatus("unsaved");
 
-    // Cancel any save that was already waiting to fire, then schedule a fresh one.
-    // This guarantees only ONE save is ever pending at a time.
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }

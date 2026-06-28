@@ -27,6 +27,9 @@ export default async function TeacherLayout({
           <Link href="/teacher/students" className="text-sm font-medium text-gray-700 hover:text-blue-600">
             Students
           </Link>
+          <Link href="/teacher/availability" className="text-sm font-medium text-gray-700 hover:text-blue-600">
+            Availability
+          </Link>
         </div>
       </nav>
       {children}

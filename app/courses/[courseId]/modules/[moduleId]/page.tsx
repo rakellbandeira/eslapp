@@ -7,6 +7,7 @@ import Link from "next/link";
 interface CourseModule {
   _id: string;
   title: string;
+  courseId: string;
 }
 
 interface Submodule {
@@ -41,18 +42,30 @@ export default function StudentModulePage() {
 
   const [courseModule, setCourseModule] = useState<CourseModule | null>(null);
   const [submodules, setSubmodules] = useState<Submodule[]>([]);
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/modules/${moduleId}`).then((r) => r.json()),
-      fetch(`/api/modules/${moduleId}/submodules`).then((r) => r.json()),
-    ]).then(([moduleData, submodulesData]) => {
+    async function load() {
+      const [moduleRes, submodulesRes] = await Promise.all([
+        fetch(`/api/modules/${moduleId}`),
+        fetch(`/api/modules/${moduleId}/submodules`),
+      ]);
+      const moduleData = await moduleRes.json();
+      const submodulesData = await submodulesRes.json();
       setCourseModule(moduleData);
       setSubmodules(submodulesData);
+
+      const progressRes = await fetch(`/api/progress?courseId=${courseId}`);
+      const progressData = await progressRes.json();
+      setCompletedIds(
+        (progressData?.completedSubmoduleIds || []).map((id: any) => id.toString())
+      );
+
       setIsLoading(false);
-    });
-  }, [moduleId]);
+    }
+    load();
+  }, [moduleId, courseId]);
 
   if (isLoading) return <p className="p-8 text-gray-500">Loading...</p>;
   if (!courseModule) return <p className="p-8 text-red-600">Module not found.</p>;
@@ -77,7 +90,9 @@ export default function StudentModulePage() {
               >
                 <div>
                   <span className="text-sm text-gray-500">#{index + 1}</span>
-                  <h3 className="font-medium text-gray-900">{sub.title}</h3>
+                  <h3 className="font-medium text-gray-900">
+                    {sub.title} {completedIds.includes(sub._id) && <span className="text-green-600">✓</span>}
+                  </h3>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_COLORS[sub.type]}`}>
                   {TYPE_LABELS[sub.type]}

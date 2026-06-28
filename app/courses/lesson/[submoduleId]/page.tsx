@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 
 interface ContentBlock {
   type: "text" | "image" | "video";
@@ -19,17 +18,47 @@ export default function LessonPage() {
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [courseId, setCourseId] = useState<string | null>(null);
+  const [isMarkedComplete, setIsMarkedComplete] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/submodules/${submoduleId}`).then((r) => r.json()),
-      fetch(`/api/submodules/${submoduleId}/page-content`).then((r) => r.json()),
-    ]).then(([submoduleData, pageData]) => {
+    async function load() {
+      const submoduleRes = await fetch(`/api/submodules/${submoduleId}`);
+      const submoduleData = await submoduleRes.json();
       setTitle(submoduleData.title);
+
+      const moduleRes = await fetch(`/api/modules/${submoduleData.moduleId}`);
+      const moduleData = await moduleRes.json();
+
+      const courseRes = await fetch(`/api/courses/${moduleData.courseId}`);
+      const courseData = await courseRes.json();
+      setCourseId(courseData._id);
+
+      const pageRes = await fetch(`/api/submodules/${submoduleId}/page-content`);
+      const pageData = await pageRes.json();
       setBlocks(pageData.contentBlocks || []);
+
+      // Record that the student visited this submodule (doesn't mark it complete yet)
+      await fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId: courseData._id, submoduleId, markComplete: false }),
+      });
+
       setIsLoading(false);
-    });
+    }
+    load();
   }, [submoduleId]);
+
+  async function handleMarkComplete() {
+    if (!courseId) return;
+    await fetch("/api/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ courseId, submoduleId, markComplete: true }),
+    });
+    setIsMarkedComplete(true);
+  }
 
   if (isLoading) return <p className="p-8 text-gray-500">Loading...</p>;
 
@@ -69,6 +98,14 @@ export default function LessonPage() {
           </div>
         ))}
       </div>
+
+      <button
+        onClick={handleMarkComplete}
+        disabled={isMarkedComplete}
+        className="mt-4 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+      >
+        {isMarkedComplete ? "✓ Marked as read" : "Mark as read"}
+      </button>
     </div>
   );
 }

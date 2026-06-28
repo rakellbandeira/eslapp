@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 interface Course {
   _id: string;
@@ -145,6 +146,14 @@ export default function TeacherStudentsPage() {
                 <p className="text-sm text-gray-600">{e.courseId?.title}</p>
               </div>
               <div className="flex items-center gap-3">
+
+                 <Link
+                  href={`/teacher/students/${e.studentId?._id}/courses/${e.courseId?._id}`}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  View progress
+                </Link>
+
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                     e.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
