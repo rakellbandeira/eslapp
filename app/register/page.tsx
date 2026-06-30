@@ -9,7 +9,8 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"student" | "teacher">("student");
+/*   const [role, setRole] = useState<"student" | "teacher">("student");
+ */  
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -22,7 +23,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role }),
+        body: JSON.stringify({ name, email, password }),
       });
 
       const data = await res.json();
@@ -88,7 +89,7 @@ export default function RegisterPage() {
             <p className="mt-1 text-xs text-gray-500">At least 8 characters.</p>
           </div>
 
-          <div>
+          {/* <div>
             <label htmlFor="role" className="block text-sm font-medium text-gray-700">
               I am a...
             </label>
@@ -100,7 +101,7 @@ export default function RegisterPage() {
               <option value="student">Student</option>
               <option value="teacher">Teacher</option>
             </select>
-          </div>
+          </div> */}
 
           {error && (
             <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

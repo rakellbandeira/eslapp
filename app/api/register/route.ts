@@ -5,7 +5,7 @@ import { User } from "@/models/User";
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password, role } = await req.json();
+    const { name, email, password } = await req.json();
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       name,
       email: email.toLowerCase(),
       passwordHash,
-      role: role === "teacher" ? "teacher" : "student", // default safely to student
+      role: "student", // default safely to student
     });
 
     return NextResponse.json(
