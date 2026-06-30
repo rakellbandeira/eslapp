@@ -32,7 +32,12 @@ function LoginForm() {
       return;
     }
 
-    router.push("/dashboard");
+    // Fetch the session to read the role, since signIn's result doesn't include it
+    const sessionRes = await fetch("/api/auth/session");
+    const session = await sessionRes.json();
+    const role = session?.user?.role;
+
+    router.push(role === "teacher" ? "/teacher/courses" : "/dashboard");
     router.refresh();
   }
 
