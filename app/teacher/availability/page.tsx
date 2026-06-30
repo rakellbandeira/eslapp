@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { theme } from "@/lib/theme";
 
 interface Rule {
   _id: string;
@@ -8,7 +9,6 @@ interface Rule {
   startTime: string;
   endTime: string;
   slotDurationMinutes: number;
-  ruleEndDate: string;
   isActive: boolean;
 }
 
@@ -24,6 +24,7 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export default function TeacherAvailabilityPage() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [defaults, setDefaults] = useState<DefaultBookingEntry[]>([]);
+  const [allSlots, setAllSlots] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]);
@@ -33,7 +34,6 @@ export default function TeacherAvailabilityPage() {
   const [monthsOut, setMonthsOut] = useState(12);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [allSlots, setAllSlots] = useState<any[]>([]);
 
   async function loadData() {
     setIsLoading(true);
@@ -46,15 +46,15 @@ export default function TeacherAvailabilityPage() {
     const teacherId = session?.user?.id;
 
     const [rulesRes, defaultsRes, slotsRes] = await Promise.all([
-        fetch("/api/availability-rules"),
-        fetch("/api/default-bookings"),
-        fetch(`/api/availability?teacherId=${teacherId}&from=${today.toISOString()}&to=${fourWeeksOut.toISOString()}`),
+      fetch("/api/availability-rules"),
+      fetch("/api/default-bookings"),
+      fetch(`/api/availability?teacherId=${teacherId}&from=${today.toISOString()}&to=${fourWeeksOut.toISOString()}`),
     ]);
     setRules(await rulesRes.json());
     setDefaults(await defaultsRes.json());
     setAllSlots(await slotsRes.json());
     setIsLoading(false);
-}
+  }
 
   useEffect(() => {
     loadData();
@@ -87,7 +87,6 @@ export default function TeacherAvailabilityPage() {
         ruleEndDate: ruleEndDate.toISOString(),
       }),
     });
-
     const data = await res.json();
 
     if (!res.ok) {
@@ -114,14 +113,22 @@ export default function TeacherAvailabilityPage() {
     loadData();
   }
 
-  if (isLoading) return <p className="p-8 text-gray-500">Loading...</p>;
+  if (isLoading) return <p className="px-4 py-12 text-gray-400">Loading...</p>;
 
   return (
-    <div className="mx-auto max-w-2xl p-8">
-      <h1 className="mb-6 text-2xl font-semibold text-gray-900">My Availability</h1>
+    <div className="mx-auto max-w-2xl px-4 py-12">
+      <h1 className="mb-8 text-3xl font-bold" style={{ color: theme.textDark }}>
+        My Availability
+      </h1>
 
-      <form onSubmit={handleCreateRule} className="mb-8 space-y-4 rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="font-medium text-gray-900">Set a recurring weekly pattern</h2>
+      <form
+        onSubmit={handleCreateRule}
+        className="mb-8 space-y-4 rounded-xl p-6"
+        style={{ backgroundColor: "#FFFFFF", boxShadow: theme.cardShadow }}
+      >
+        <h2 className="font-semibold" style={{ color: theme.primaryDark }}>
+          Set a recurring weekly pattern
+        </h2>
 
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">Days of week</label>
@@ -131,11 +138,12 @@ export default function TeacherAvailabilityPage() {
                 key={index}
                 type="button"
                 onClick={() => toggleDay(index)}
-                className={`rounded-md px-2 py-1.5 text-xs font-medium ${
+                className="rounded-lg px-2 py-1.5 text-xs font-medium transition-opacity"
+                style={
                   selectedDays.includes(index)
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
+                    ? { backgroundColor: theme.primaryDark, color: "#fff" }
+                    : { backgroundColor: "#F1F1F1", color: "#888" }
+                }
               >
                 {name}
               </button>
@@ -150,7 +158,7 @@ export default function TeacherAvailabilityPage() {
               type="time"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
             />
           </div>
           <div>
@@ -159,7 +167,7 @@ export default function TeacherAvailabilityPage() {
               type="time"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
             />
           </div>
           <div>
@@ -170,7 +178,7 @@ export default function TeacherAvailabilityPage() {
               step={15}
               value={duration}
               onChange={(e) => setDuration(parseInt(e.target.value) || 60)}
-              className="mt-1 w-28 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              className="mt-1 w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
             />
           </div>
         </div>
@@ -183,38 +191,45 @@ export default function TeacherAvailabilityPage() {
             max={24}
             value={monthsOut}
             onChange={(e) => setMonthsOut(parseInt(e.target.value) || 12)}
-            className="mt-1 w-28 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+            className="mt-1 w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
           />
         </div>
 
-        {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {error && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        )}
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: theme.accent }}
         >
           {isSubmitting ? "Creating..." : "Create recurring pattern"}
         </button>
       </form>
 
-      <h2 className="mb-3 text-lg font-medium text-gray-900">Active patterns</h2>
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        Active patterns
+      </h2>
       {rules.length === 0 ? (
-        <p className="mb-8 text-gray-500">No recurring patterns yet.</p>
+        <p className="mb-8 text-gray-400">No recurring patterns yet.</p>
       ) : (
         <ul className="mb-8 space-y-2">
           {rules.map((rule) => (
             <li
               key={rule._id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3"
+              className="flex items-center justify-between rounded-xl p-4"
+              style={{ backgroundColor: "#FFFFFF", boxShadow: theme.cardShadow }}
             >
-              <p className="text-sm text-gray-900">
+              <p className="text-sm" style={{ color: theme.textDark }}>
                 {rule.daysOfWeek.map((d) => DAY_NAMES[d]).join(", ")} · {rule.startTime}–{rule.endTime} ·{" "}
                 {rule.slotDurationMinutes}min classes
               </p>
               <button
                 onClick={() => toggleRuleActive(rule)}
-                className={`text-sm ${rule.isActive ? "text-red-500 hover:text-red-700" : "text-green-600 hover:text-green-700"}`}
+                className="text-sm font-medium"
+                style={{ color: rule.isActive ? theme.danger : theme.accent }}
               >
                 {rule.isActive ? "Deactivate" : "Reactivate"}
               </button>
@@ -223,59 +238,68 @@ export default function TeacherAvailabilityPage() {
         </ul>
       )}
 
-      <h2 className="mb-3 text-lg font-medium text-gray-900">Students' standing weekly classes</h2>
-
-      <h2 className="mb-3 mt-8 text-lg font-medium text-gray-900">Upcoming bookings (next 4 weeks)</h2>
-        {allSlots.filter((s) => s.status === "booked").length === 0 ? (
-        <p className="text-gray-500">No bookings yet.</p>
-        ) : (
-        <ul className="space-y-2">
-            {allSlots
-            .filter((s) => s.status === "booked")
-            .map((s) => (
-                <li
-                key={s._id}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3"
-                >
-                <p className="text-sm text-gray-900">
-                    {new Date(s.startTime).toLocaleString(undefined, {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                    })}
-                </p>
-                {s.isDefaultBooking && (
-                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                    Standing default
-                    </span>
-                )}
-                </li>
-            ))}
-        </ul>
-        )}
-
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        Students' standing weekly classes
+      </h2>
       {defaults.length === 0 ? (
-        <p className="text-gray-500">No students have set a default time yet.</p>
+        <p className="mb-8 text-gray-400">No students have set a default time yet.</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="mb-8 space-y-2">
           {defaults.map((d) => (
             <li
               key={d._id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3"
+              className="flex items-center justify-between rounded-xl p-4"
+              style={{ backgroundColor: "#FFFFFF", boxShadow: theme.cardShadow }}
             >
-              <p className="text-sm text-gray-900">
+              <p className="text-sm" style={{ color: theme.textDark }}>
                 {d.studentId?.name} — {DAY_NAMES[d.dayOfWeek]} at {d.time}
               </p>
               <button
                 onClick={() => cancelDefault(d._id)}
-                className="text-sm text-red-500 hover:text-red-700"
+                className="text-sm font-medium"
+                style={{ color: theme.danger }}
               >
                 Cancel
               </button>
             </li>
           ))}
+        </ul>
+      )}
+
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        Upcoming bookings (next 4 weeks)
+      </h2>
+      {allSlots.filter((s) => s.status === "booked").length === 0 ? (
+        <p className="text-gray-400">No bookings yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {allSlots
+            .filter((s) => s.status === "booked")
+            .map((s) => (
+              <li
+                key={s._id}
+                className="flex items-center justify-between rounded-xl p-4"
+                style={{ backgroundColor: "#FFFFFF", boxShadow: theme.cardShadow }}
+              >
+                <p className="text-sm" style={{ color: theme.textDark }}>
+                  {new Date(s.startTime).toLocaleString(undefined, {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </p>
+                {s.isDefaultBooking && (
+                  <span
+                    className="rounded-full px-3 py-1 text-xs font-medium"
+                    style={{ backgroundColor: "#DEF7EC", color: theme.accent }}
+                  >
+                    Standing default
+                  </span>
+                )}
+              </li>
+            ))}
         </ul>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { theme } from "@/lib/theme";
 
 interface Course {
   _id: string;
@@ -13,7 +14,6 @@ interface Enrollment {
   studentId: { _id: string; name: string; email: string };
   courseId: { _id: string; title: string };
   status: "active" | "revoked";
-  assignedAt: string;
 }
 
 export default function TeacherStudentsPage() {
@@ -53,7 +53,6 @@ export default function TeacherStudentsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ studentEmail, courseId: selectedCourseId }),
     });
-
     const data = await res.json();
 
     if (!res.ok) {
@@ -77,14 +76,22 @@ export default function TeacherStudentsPage() {
     loadData();
   }
 
-  if (isLoading) return <p className="p-8 text-gray-500">Loading...</p>;
+  if (isLoading) return <p className="px-4 py-12 text-gray-400">Loading...</p>;
 
   return (
-    <div className="mx-auto max-w-3xl p-8">
-      <h1 className="mb-6 text-2xl font-semibold text-gray-900">Students</h1>
+    <div className="mx-auto max-w-3xl px-4 py-12">
+      <h1 className="mb-8 text-3xl font-bold" style={{ color: theme.textDark }}>
+        Students
+      </h1>
 
-      <form onSubmit={handleAssign} className="mb-8 space-y-3 rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="font-medium text-gray-900">Assign a course</h2>
+      <form
+        onSubmit={handleAssign}
+        className="mb-8 space-y-4 rounded-xl p-6"
+        style={{ backgroundColor: "#FFFFFF", boxShadow: theme.cardShadow }}
+      >
+        <h2 className="font-semibold" style={{ color: theme.primaryDark }}>
+          Assign a course
+        </h2>
 
         <div>
           <label className="block text-sm font-medium text-gray-700">Student email</label>
@@ -94,10 +101,11 @@ export default function TeacherStudentsPage() {
             value={studentEmail}
             onChange={(e) => setStudentEmail(e.target.value)}
             placeholder="student@example.com"
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2"
+            style={{ "--tw-ring-color": theme.primary } as React.CSSProperties}
           />
-          <p className="mt-1 text-xs text-gray-500">
-            The student must already have an account (they sign up themselves first).
+          <p className="mt-1 text-xs text-gray-400">
+            The student must already have an account.
           </p>
         </div>
 
@@ -106,7 +114,8 @@ export default function TeacherStudentsPage() {
           <select
             value={selectedCourseId}
             onChange={(e) => setSelectedCourseId(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2"
+            style={{ "--tw-ring-color": theme.primary } as React.CSSProperties}
           >
             {courses.map((c) => (
               <option key={c._id} value={c._id}>
@@ -117,53 +126,69 @@ export default function TeacherStudentsPage() {
         </div>
 
         {error && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: theme.accent }}
         >
           {isSubmitting ? "Assigning..." : "Assign course"}
         </button>
       </form>
 
-      <h2 className="mb-3 text-lg font-medium text-gray-900">Current enrollments</h2>
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        Current enrollments
+      </h2>
 
       {enrollments.length === 0 ? (
-        <p className="text-gray-500">No students enrolled yet.</p>
+        <div
+          className="rounded-xl p-8 text-center"
+          style={{ backgroundColor: "#FFFFFF", boxShadow: theme.cardShadow }}
+        >
+          <p className="text-gray-500">No students enrolled yet.</p>
+        </div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {enrollments.map((e) => (
             <li
               key={e._id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4"
+              className="flex items-center justify-between rounded-xl p-5"
+              style={{ backgroundColor: "#FFFFFF", boxShadow: theme.cardShadow }}
             >
               <div>
-                <p className="font-medium text-gray-900">{e.studentId?.name}</p>
-                <p className="text-sm text-gray-500">{e.studentId?.email}</p>
-                <p className="text-sm text-gray-600">{e.courseId?.title}</p>
+                <p className="font-semibold" style={{ color: theme.textDark }}>
+                  {e.studentId?.name}
+                </p>
+                <p className="text-sm text-gray-400">{e.studentId?.email}</p>
+                <p className="text-sm" style={{ color: theme.primaryDark }}>
+                  {e.courseId?.title}
+                </p>
               </div>
               <div className="flex items-center gap-3">
-
-                 <Link
+                <Link
                   href={`/teacher/students/${e.studentId?._id}/courses/${e.courseId?._id}`}
-                  className="text-sm text-blue-600 hover:underline"
+                  className="text-sm font-medium"
+                  style={{ color: theme.accent }}
                 >
                   View progress
                 </Link>
-
                 <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                    e.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
-                  }`}
+                  className="rounded-full px-3 py-1 text-xs font-medium"
+                  style={
+                    e.status === "active"
+                      ? { backgroundColor: "#DEF7EC", color: theme.accent }
+                      : { backgroundColor: "#F1F1F1", color: "#888" }
+                  }
                 >
                   {e.status === "active" ? "Active" : "Revoked"}
                 </span>
                 <button
                   onClick={() => toggleStatus(e)}
-                  className="text-sm text-blue-600 hover:underline"
+                  className="text-sm font-medium"
+                  style={{ color: theme.danger }}
                 >
                   {e.status === "active" ? "Revoke" : "Reactivate"}
                 </button>

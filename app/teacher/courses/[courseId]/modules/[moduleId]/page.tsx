@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { theme } from "@/lib/theme";
 
 interface CourseModule {
   _id: string;
@@ -22,10 +23,10 @@ const TYPE_LABELS: Record<string, string> = {
   pdf_exercise: "PDF Exercise",
 };
 
-const TYPE_COLORS: Record<string, string> = {
-  page: "bg-blue-100 text-blue-700",
-  quiz: "bg-purple-100 text-purple-700",
-  pdf_exercise: "bg-amber-100 text-amber-700",
+const TYPE_STYLES: Record<string, { bg: string; color: string }> = {
+  page: { bg: "#EDE7F6", color: theme.primaryDark },
+  quiz: { bg: "#F3E5F5", color: "#8E44AD" },
+  pdf_exercise: { bg: "#FFF3E0", color: "#D68910" },
 };
 
 export default function ModuleDetailPage() {
@@ -47,7 +48,6 @@ export default function ModuleDetailPage() {
       fetch(`/api/modules/${moduleId}`),
       fetch(`/api/modules/${moduleId}/submodules`),
     ]);
-
     if (moduleRes.ok) setCourseModule(await moduleRes.json());
     if (submodulesRes.ok) setSubmodules(await submodulesRes.json());
     setIsLoading(false);
@@ -67,7 +67,6 @@ export default function ModuleDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: newTitle, type: newType }),
     });
-
     const data = await res.json();
 
     if (!res.ok) {
@@ -81,37 +80,42 @@ export default function ModuleDetailPage() {
     loadData();
   }
 
-  if (isLoading) {
-    return <p className="p-8 text-gray-500">Loading...</p>;
-  }
-
-  if (!courseModule) {
-    return <p className="p-8 text-red-600">Module not found.</p>;
-  }
+  if (isLoading) return <p className="px-4 py-12 text-gray-400">Loading...</p>;
+  if (!courseModule) return <p className="px-4 py-12 text-red-600">Module not found.</p>;
 
   return (
-    <div className="mx-auto max-w-3xl p-8">
-      <Link href={`/teacher/courses/${courseId}`} className="text-sm text-blue-600 hover:underline">
+    <div className="mx-auto max-w-3xl px-4 py-12">
+      <Link
+        href={`/teacher/courses/${courseId}`}
+        className="text-sm font-medium"
+        style={{ color: theme.primaryDark }}
+      >
         ← Back to course
       </Link>
 
-      <h1 className="mt-4 text-2xl font-semibold text-gray-900">{courseModule.title}</h1>
+      <h1 className="mt-4 mb-8 text-3xl font-bold" style={{ color: theme.textDark }}>
+        {courseModule.title}
+      </h1>
 
-      <h2 className="mt-8 mb-3 text-lg font-medium text-gray-900">Submodules</h2>
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        Submodules
+      </h2>
 
-      <form onSubmit={handleAddSubmodule} className="mb-4 flex gap-2">
+      <form onSubmit={handleAddSubmodule} className="mb-6 flex gap-2">
         <input
           type="text"
           required
           placeholder="New submodule title"
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2"
+          style={{ "--tw-ring-color": theme.primary } as React.CSSProperties}
         />
         <select
           value={newType}
           onChange={(e) => setNewType(e.target.value as any)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2"
+          style={{ "--tw-ring-color": theme.primary } as React.CSSProperties}
         >
           <option value="page">Page</option>
           <option value="quiz">Quiz</option>
@@ -120,31 +124,50 @@ export default function ModuleDetailPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: theme.primaryDark }}
         >
           {isSubmitting ? "Adding..." : "Add"}
         </button>
       </form>
 
       {error && (
-        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
       {submodules.length === 0 ? (
-        <p className="text-gray-500">No submodules yet. Add your first one above.</p>
+        <div
+          className="rounded-xl p-8 text-center"
+          style={{ backgroundColor: "#FFFFFF", boxShadow: theme.cardShadow }}
+        >
+          <p className="text-gray-500">No submodules yet. Add your first one above.</p>
+        </div>
       ) : (
         <ul className="space-y-2">
           {submodules.map((sub, index) => (
             <li key={sub._id}>
               <Link
                 href={`/teacher/courses/${courseId}/modules/${moduleId}/submodules/${sub._id}`}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 hover:border-blue-300"
+                className="flex items-center justify-between rounded-xl p-5 transition-shadow hover:shadow-md"
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  boxShadow: theme.cardShadow,
+                  borderLeft: `4px solid ${theme.primary}`,
+                }}
               >
                 <div>
-                  <span className="text-sm text-gray-500">#{index + 1}</span>
-                  <h3 className="font-medium text-gray-900">{sub.title}</h3>
+                  <span className="text-xs font-medium uppercase text-gray-400">#{index + 1}</span>
+                  <h3 className="font-semibold" style={{ color: theme.primaryDark }}>
+                    {sub.title}
+                  </h3>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_COLORS[sub.type]}`}>
+                <span
+                  className="rounded-full px-3 py-1 text-xs font-medium"
+                  style={{
+                    backgroundColor: TYPE_STYLES[sub.type].bg,
+                    color: TYPE_STYLES[sub.type].color,
+                  }}
+                >
                   {TYPE_LABELS[sub.type]}
                 </span>
               </Link>
