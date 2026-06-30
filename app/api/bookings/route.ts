@@ -22,6 +22,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const session = await auth();
+
   if (!session?.user || (session.user as any).role !== "student") {
     return NextResponse.json({ error: "Only students can book classes." }, { status: 403 });
   }
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
   await connectDB();
 
   try {
-    const { slotId } = await req.json();
+    const { slotId, isDefaultBooking } = await req.json();
     if (!slotId) {
       return NextResponse.json({ error: "slotId is required." }, { status: 400 });
     }
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
     // "booked", so the filter matches nothing and result comes back null.
     const result = await AvailabilitySlot.findOneAndUpdate(
       { _id: slotId, status: "open" },
-      { status: "booked", bookedBy: studentId },
+      { status: "booked", bookedBy: studentId, isDefaultBooking: !!isDefaultBooking },
       { new: true }
     );
 

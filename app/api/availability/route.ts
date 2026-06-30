@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/mongodb";
 import { AvailabilitySlot } from "@/models/AvailabilitySlot";
+import { generateSlotsForWindow } from "@/lib/generateSlots";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -20,6 +21,11 @@ export async function GET(req: Request) {
 
   await connectDB();
 
+  // Keep the requested window's slots up to date before reading them
+  if (from && to) {
+    await generateSlotsForWindow(teacherId, new Date(from), new Date(to));
+  }
+
   const filter: any = { teacherId };
   if (from || to) {
     filter.startTime = {};
@@ -29,42 +35,4 @@ export async function GET(req: Request) {
 
   const slots = await AvailabilitySlot.find(filter).sort({ startTime: 1 });
   return NextResponse.json(slots);
-}
-
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user || (session.user as any).role !== "teacher") {
-    return NextResponse.json({ error: "Only teachers can create availability." }, { status: 403 });
-  }
-
-  const teacherId = (session.user as any).id;
-
-  await connectDB();
-
-  try {
-    const { startTime, endTime } = await req.json();
-
-    if (!startTime || !endTime) {
-      return NextResponse.json({ error: "startTime and endTime are required." }, { status: 400 });
-    }
-
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-
-    if (end <= start) {
-      return NextResponse.json({ error: "endTime must be after startTime." }, { status: 400 });
-    }
-
-    const slot = await AvailabilitySlot.create({
-      teacherId,
-      startTime: start,
-      endTime: end,
-      status: "open",
-    });
-
-    return NextResponse.json(slot, { status: 201 });
-  } catch (err) {
-    console.error("Availability creation error:", err);
-    return NextResponse.json({ error: "Could not create slot." }, { status: 500 });
-  }
 }
