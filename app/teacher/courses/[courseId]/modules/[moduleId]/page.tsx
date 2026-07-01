@@ -83,6 +83,18 @@ export default function ModuleDetailPage() {
   if (isLoading) return <p className="px-4 py-12 text-gray-400">Loading...</p>;
   if (!courseModule) return <p className="px-4 py-12 text-red-600">Module not found.</p>;
 
+  async function handleDeleteSubmodule(submoduleId: string) {
+    const confirmed = window.confirm(
+      "Delete this submodule? This cannot be undone, and any student progress or content inside it will be lost."
+    );
+    if (!confirmed) return;
+
+    await fetch(`/api/modules/${moduleId}/submodules/${submoduleId}`, {
+      method: "DELETE",
+    });
+    loadData();
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
       <Link
@@ -144,11 +156,12 @@ export default function ModuleDetailPage() {
         </div>
       ) : (
         <ul className="space-y-2">
+
           {submodules.map((sub, index) => (
-            <li key={sub._id}>
+            <li key={sub._id} className="flex items-center gap-2">
               <Link
                 href={`/teacher/courses/${courseId}/modules/${moduleId}/submodules/${sub._id}`}
-                className="flex items-center justify-between rounded-xl p-5 transition-shadow hover:shadow-md"
+                className="flex flex-1 items-center justify-between rounded-xl p-5 transition-shadow hover:shadow-md"
                 style={{
                   backgroundColor: "#FFFFFF",
                   boxShadow: theme.cardShadow,
@@ -171,8 +184,23 @@ export default function ModuleDetailPage() {
                   {TYPE_LABELS[sub.type]}
                 </span>
               </Link>
+              <button
+                onClick={() => handleDeleteSubmodule(sub._id)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#E57373" }}
+                title="Delete submodule"
+              >
+                Delete
+              </button>
             </li>
           ))}
+
+          
+          
+
+
+
+
         </ul>
       )}
     </div>

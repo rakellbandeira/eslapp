@@ -14,9 +14,9 @@ export default async function StudentLayout({
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F2EEF0" }}>
+    <div className="flex min-h-screen flex-col" style={{ backgroundColor: "#F2EEF0" }}>
       <StudentNav userName={session.user.name || ""} />
-      <main>{children}</main>
+      <main className="flex-1">{children}</main>
       <footer
         className="mt-16 py-6 text-center text-sm text-gray-300"
         style={{ backgroundColor: "#2D3748" }}

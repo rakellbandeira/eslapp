@@ -53,6 +53,10 @@ export default function PdfAnnotator({
   const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // History refs must be INSIDE the component, not at module level
+  const historyRef = useRef<Annotation[][]>([]);
+  const historyIndexRef = useRef<number>(-1);
+
   useEffect(() => {
     if (containerRef.current) {
       setBaseWidth(Math.min(containerRef.current.clientWidth, 800));
@@ -65,16 +69,36 @@ export default function PdfAnnotator({
     setZoom((prev) => Math.min(Math.max(0.5, prev + delta), 3));
   }
 
+  function pushHistory(newAnnotations: Annotation[]) {
+    // Discard any "future" states if we undid and then made a new change
+    historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
+    historyRef.current.push(newAnnotations);
+    historyIndexRef.current = historyRef.current.length - 1;
+    onAnnotationsChange(newAnnotations);
+  }
+
   function addAnnotation(annotation: Annotation) {
-    onAnnotationsChange([...annotations, annotation]);
+    pushHistory([...annotations, annotation]);
   }
 
   function updateAnnotation(id: string, updates: Partial<Annotation>) {
-    onAnnotationsChange(annotations.map((a) => (a.id === id ? { ...a, ...updates } : a)));
+    pushHistory(annotations.map((a) => (a.id === id ? { ...a, ...updates } : a)));
   }
 
   function removeAnnotation(id: string) {
-    onAnnotationsChange(annotations.filter((a) => a.id !== id));
+    pushHistory(annotations.filter((a) => a.id !== id));
+  }
+
+  function undo() {
+    if (historyIndexRef.current <= 0) return;
+    historyIndexRef.current -= 1;
+    onAnnotationsChange(historyRef.current[historyIndexRef.current]);
+  }
+
+  function redo() {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    historyIndexRef.current += 1;
+    onAnnotationsChange(historyRef.current[historyIndexRef.current]);
   }
 
   function applyEraserToAnnotations(eraserPath: { x: number; y: number }[]) {
@@ -120,7 +144,8 @@ export default function PdfAnnotator({
         }
       }
     }
-    onAnnotationsChange(expanded);
+    // Route through pushHistory so eraser strokes are also undoable
+    pushHistory(expanded);
   }
 
   return (
@@ -182,6 +207,23 @@ export default function PdfAnnotator({
             className="rounded px-2 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100"
           >
             +
+          </button>
+
+          <div className="h-6 w-px bg-gray-300" />
+
+          <button
+            onClick={undo}
+            className="rounded px-2 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100"
+            title="Undo"
+          >
+            ↩ Undo
+          </button>
+          <button
+            onClick={redo}
+            className="rounded px-2 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100"
+            title="Redo"
+          >
+            Redo ↪
           </button>
         </div>
       )}
@@ -274,11 +316,10 @@ function PageWithOverlay({
         x: point.x,
         y: point.y,
         width: 0.3,
-        // Single-line height as a fraction, matching FONT_SIZE_FRACTION + padding
-        height: (FONT_SIZE_FRACTION * 1.6),
+        height: FONT_SIZE_FRACTION * 1.6,
         text: "",
         color: "#000000",
-        fontSize: FONT_SIZE_FRACTION,   // stored as fraction, converted to px at render time
+        fontSize: FONT_SIZE_FRACTION,
       });
       setTimeout(() => onModeChange("select"), 100);
     }
@@ -302,7 +343,7 @@ function PageWithOverlay({
         y: 0,
         path: currentStroke,
         color: drawColor,
-        strokeWidth: STROKE_WIDTH_FRACTION,  // stored as fraction
+        strokeWidth: STROKE_WIDTH_FRACTION,
       });
     } else if (mode === "erase" && isErasing.current && currentEraserPath) {
       onErase(currentEraserPath);
@@ -349,7 +390,7 @@ function PageWithOverlay({
           y: 0,
           path: currentStroke,
           color: drawColor,
-          strokeWidth: STROKE_WIDTH_FRACTION,  // stored as fraction
+          strokeWidth: STROKE_WIDTH_FRACTION,
         });
       }
     } else if (mode === "erase" && isErasing.current) {
@@ -366,7 +407,6 @@ function PageWithOverlay({
     return path.map((p) => `${p.x * renderedSize.width},${p.y * renderedSize.height}`).join(" ");
   }
 
-  // Convert a fraction-based strokeWidth to actual pixels at current zoom
   function resolveStrokeWidth(fraction: number | undefined): number {
     return (fraction ?? STROKE_WIDTH_FRACTION) * renderedSize.width;
   }
@@ -491,24 +531,16 @@ function TextAnnotationBox({
     }
   }, []);
 
-  // Convert fraction-based fontSize to actual pixels at current rendered size
-  // Falls back to FONT_SIZE_FRACTION if the annotation predates this change
   const fontSizePx = (annotation.fontSize ?? FONT_SIZE_FRACTION) * renderedSize.width;
 
-  const left   = annotation.x * renderedSize.width;
-  const top    = annotation.y * renderedSize.height;
-  const width  = (annotation.width  || 0.3)  * renderedSize.width;
-  /* const height = (annotation.height || 0.08) * renderedSize.height;
- */
+  const left  = annotation.x * renderedSize.width;
+  const top   = annotation.y * renderedSize.height;
+  const width = (annotation.width || 0.3) * renderedSize.width;
 
-  // Minimum height: font size in pixels + fixed padding on both sides (8px top + 8px bottom)
-  // This prevents the box from shrinking below what the text needs at any zoom level
-  const INNER_PADDING_PX = 16; // ← tune this if you want more/less breathing room around text
+  const INNER_PADDING_PX = 16;
   const heightFromFraction = (annotation.height || 0.08) * renderedSize.height;
   const heightMinimum = fontSizePx + INNER_PADDING_PX;
   const height = Math.max(heightFromFraction, heightMinimum);
-
-  
 
   function isInBorderZone(localX: number, localY: number): boolean {
     return (
@@ -650,8 +682,6 @@ function TextAnnotationBox({
         style={{
           width: "100%",
           height: "100%",
-          // fontSizePx is computed from the fraction × current renderedSize.width
-          // so it scales correctly with zoom — same visual size at any zoom level
           fontSize: `${fontSizePx}px`,
           color: annotation.color || "#000000",
           resize: "none",

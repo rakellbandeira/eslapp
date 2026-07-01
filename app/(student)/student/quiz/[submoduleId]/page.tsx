@@ -100,11 +100,34 @@ export default function TakeQuizPage() {
   if (existingAttempt) {
     return (
       <div className="mx-auto max-w-2xl p-8">
+        <nav className="mb-4 flex items-center gap-2 text-sm text-gray-500">
+          <Link href="/dashboard" className="hover:underline" style={{ color: "#7B5EA7" }}>
+            Dashboard
+          </Link>
+          <span>/</span>
+          {courseId && (
+            <>
+              <Link href={`/courses/${courseId}`} className="hover:underline" style={{ color: "#7B5EA7" }}>
+                Course
+              </Link>
+              <span>/</span>
+            </>
+          )}
+          <span className="font-medium text-gray-900">Quiz</span>
+        </nav>
+
         <div className="rounded-lg border border-green-200 bg-green-50 p-6 text-center">
           <p className="text-sm text-green-700">Quiz completed</p>
           <p className="mt-1 text-3xl font-semibold text-green-800">
             {existingAttempt.score} / {existingAttempt.maxScore}
           </p>
+          <Link
+            href="/dashboard"
+            className="mt-4 inline-block rounded-lg px-4 py-2 text-sm font-medium text-white"
+            style={{ backgroundColor: "#7B5EA7" }}
+          >
+            Back to dashboard
+          </Link>
         </div>
       </div>
     );
