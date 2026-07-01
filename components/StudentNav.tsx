@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useState } from "react";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -12,40 +13,87 @@ const NAV_LINKS = [
 
 export default function StudentNav({ userName }: { userName: string }) {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <nav
-      className="flex items-center justify-between px-8 py-4"
-      style={{ backgroundColor: "#9370BE" }}
-    >
-      <Link
-        href="/dashboard"
-        className="text-xl font-bold text-white tracking-tight"
-      >
-        ESL Pals
-      </Link>
+    <nav style={{ backgroundColor: "#9370BE" }}>
+      <div className="flex items-center justify-between px-6 py-4">
+        <Link href="/dashboard" className="text-xl font-bold text-white tracking-tight">
+          ESL Pals
+        </Link>
 
-      <div className="flex items-center gap-6">
-        {NAV_LINKS.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={`text-sm font-medium transition-opacity ${
-              pathname === link.href
-                ? "text-white opacity-100 underline underline-offset-4"
-                : "text-white opacity-80 hover:opacity-100"
-            }`}
+        {/* Desktop nav */}
+        <div className="hidden items-center gap-6 md:flex">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`text-sm font-medium transition-opacity ${
+                pathname === link.href
+                  ? "text-white opacity-100 underline underline-offset-4"
+                  : "text-white opacity-80 hover:opacity-100"
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="text-sm font-medium text-white opacity-80 hover:opacity-100"
           >
-            {link.label}
-          </Link>
-        ))}
+            Logout
+          </button>
+        </div>
+
+        {/* Hamburger button — mobile only */}
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="text-sm font-medium text-white opacity-80 hover:opacity-100"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex flex-col items-center justify-center gap-1.5 md:hidden"
+          aria-label="Toggle menu"
         >
-          Logout
+          <span
+            className={`block h-0.5 w-6 bg-white transition-transform duration-200 ${
+              isOpen ? "translate-y-2 rotate-45" : ""
+            }`}
+          />
+          <span
+            className={`block h-0.5 w-6 bg-white transition-opacity duration-200 ${
+              isOpen ? "opacity-0" : ""
+            }`}
+          />
+          <span
+            className={`block h-0.5 w-6 bg-white transition-transform duration-200 ${
+              isOpen ? "-translate-y-2 -rotate-45" : ""
+            }`}
+          />
         </button>
       </div>
+
+      {/* Mobile menu dropdown */}
+      {isOpen && (
+        <div className="border-t border-white/20 px-6 pb-4 md:hidden">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setIsOpen(false)}
+              className={`block py-3 text-sm font-medium transition-opacity ${
+                pathname === link.href
+                  ? "text-white opacity-100"
+                  : "text-white opacity-80 hover:opacity-100"
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="block py-3 text-sm font-medium text-white opacity-80 hover:opacity-100"
+          >
+            Logout
+          </button>
+        </div>
+      )}
     </nav>
   );
 }

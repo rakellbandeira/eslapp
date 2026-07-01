@@ -128,6 +128,7 @@ export default function PdfAnnotator({
             onAdd={addAnnotation}
             onUpdate={updateAnnotation}
             onRemove={removeAnnotation}
+            onModeChange={setMode}
           />
         ))}
       </Document>
@@ -145,6 +146,7 @@ interface PageWithOverlayProps {
   onAdd: (a: Annotation) => void;
   onUpdate: (id: string, updates: Partial<Annotation>) => void;
   onRemove: (id: string) => void;
+  onModeChange: (mode: "draw" | "text" | "select") => void;
 }
 
 function PageWithOverlay({
@@ -157,6 +159,7 @@ function PageWithOverlay({
   onAdd,
   onUpdate,
   onRemove,
+  onModeChange,
 }: PageWithOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const [renderedSize, setRenderedSize] = useState({ width: pageWidth, height: pageWidth * 1.4 });
@@ -183,21 +186,24 @@ function PageWithOverlay({
     } else if (mode === "text") {
         const point = getRelativePoint(e);
         const id = `txt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-        const singleLineHeightPx = 24; // ~14px font + comfortable padding/line-height
+        const singleLineHeightPx = 24;
         onAdd({
-            id,
-            type: "text",
-            page: pageNum,
-            x: point.x,
-            y: point.y,
-            width: 0.3,
-            height: singleLineHeightPx / renderedSize.height,
-            text: "",
-            color: "#000000",
-            fontSize: 14,
-        });
-        }
+          id,
+          type: "text",
+          page: pageNum,
+          x: point.x,
+          y: point.y,
+          width: 0.3,
+          height: singleLineHeightPx / renderedSize.height,
+          text: "",
+          color: "#000000",
+          fontSize: 14,
+      });
+    onModeChange("select");
+    }
+    
   }
+
 
   function handleMouseMove(e: React.MouseEvent) {
     if (mode === "draw" && isDrawing.current && currentStroke) {
@@ -217,6 +223,52 @@ function PageWithOverlay({
         path: currentStroke,
         color: drawColor,
         strokeWidth: 2,
+      });
+    }
+    isDrawing.current = false;
+    setCurrentStroke(null);
+  }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (readOnly || mode !== "draw") return;
+    if (e.touches.length !== 1) return; // two fingers = scroll, ignore
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = overlayRef.current!.getBoundingClientRect();
+    const point = {
+      x: (touch.clientX - rect.left) / rect.width,
+      y: (touch.clientY - rect.top) / rect.height,
+    };
+    isDrawing.current = true;
+    setCurrentStroke([point]);
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (!isDrawing.current || e.touches.length !== 1) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = overlayRef.current!.getBoundingClientRect();
+    const point = {
+      x: (touch.clientX - rect.left) / rect.width,
+      y: (touch.clientY - rect.top) / rect.height,
+    };
+    setCurrentStroke((prev) => (prev ? [...prev, point] : [point]));
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (!isDrawing.current) return;
+    e.preventDefault();
+    if (currentStroke && currentStroke.length > 1) {
+      const id = `draw-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      onAdd({
+        id,
+        type: "draw",
+        page: pageNum,
+        x: 0,
+        y: 0,
+        path: currentStroke,
+        color: drawColor,
+        strokeWidth: 3, // slightly thicker than mouse strokes for finger drawing
       });
     }
     isDrawing.current = false;
@@ -248,57 +300,61 @@ function PageWithOverlay({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className="absolute left-0 top-0"
         style={{
           width: renderedSize.width,
           height: renderedSize.height,
           zIndex: 10,
           cursor: readOnly ? "default" : mode === "draw" ? "crosshair" : mode === "text" ? "text" : "default",
+          touchAction: mode === "draw" ? "none" : "auto",
         }}
+      />
+
+      <svg
+        className="pointer-events-none absolute left-0 top-0"
+        width={renderedSize.width}
+        height={renderedSize.height}
       >
-        <svg
-          className="pointer-events-none absolute left-0 top-0"
-          width={renderedSize.width}
-          height={renderedSize.height}
-        >
-          {annotations
-            .filter((a) => a.type === "draw" && a.path)
-            .map((a) => (
-              <polyline
-                key={a.id}
-                points={pathToPoints(a.path!)}
-                fill="none"
-                stroke={a.color || "#000"}
-                strokeWidth={a.strokeWidth || 2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
-          {currentStroke && (
+        {annotations
+          .filter((a) => a.type === "draw" && a.path)
+          .map((a) => (
             <polyline
-              points={pathToPoints(currentStroke)}
+              key={a.id}
+              points={pathToPoints(a.path!)}
               fill="none"
-              stroke={drawColor}
-              strokeWidth={2}
+              stroke={a.color || "#000"}
+              strokeWidth={a.strokeWidth || 2}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-          )}
-        </svg>
-
-        {annotations
-          .filter((a) => a.type === "text")
-          .map((a) => (
-            <TextAnnotationBox
-              key={a.id}
-              annotation={a}
-              renderedSize={renderedSize}
-              readOnly={readOnly}
-              onUpdate={onUpdate}
-              onRemove={onRemove}
-            />
           ))}
-      </div>
+        {currentStroke && (
+          <polyline
+            points={pathToPoints(currentStroke)}
+            fill="none"
+            stroke={drawColor}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+      </svg>
+
+      {annotations
+        .filter((a) => a.type === "text")
+        .map((a) => (
+          <TextAnnotationBox
+            key={a.id}
+            annotation={a}
+            renderedSize={renderedSize}
+            readOnly={readOnly}
+            onUpdate={onUpdate}
+            onRemove={onRemove}
+          />
+        ))}
     </div>
   );
 }
