@@ -491,14 +491,24 @@ function TextAnnotationBox({
     }
   }, []);
 
-  const left   = annotation.x * renderedSize.width;
-  const top    = annotation.y * renderedSize.height;
-  const width  = (annotation.width  || 0.3)  * renderedSize.width;
-  const height = (annotation.height || 0.08) * renderedSize.height;
-
   // Convert fraction-based fontSize to actual pixels at current rendered size
   // Falls back to FONT_SIZE_FRACTION if the annotation predates this change
   const fontSizePx = (annotation.fontSize ?? FONT_SIZE_FRACTION) * renderedSize.width;
+
+  const left   = annotation.x * renderedSize.width;
+  const top    = annotation.y * renderedSize.height;
+  const width  = (annotation.width  || 0.3)  * renderedSize.width;
+  /* const height = (annotation.height || 0.08) * renderedSize.height;
+ */
+
+  // Minimum height: font size in pixels + fixed padding on both sides (8px top + 8px bottom)
+  // This prevents the box from shrinking below what the text needs at any zoom level
+  const INNER_PADDING_PX = 16; // ← tune this if you want more/less breathing room around text
+  const heightFromFraction = (annotation.height || 0.08) * renderedSize.height;
+  const heightMinimum = fontSizePx + INNER_PADDING_PX;
+  const height = Math.max(heightFromFraction, heightMinimum);
+
+  
 
   function isInBorderZone(localX: number, localY: number): boolean {
     return (
