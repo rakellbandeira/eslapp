@@ -511,63 +511,84 @@ function TextAnnotationBox({
 
   return (
     <div
-      ref={boxRef}
-      className="group pointer-events-auto absolute"
-      style={{ left, top, width, height, cursor: readOnly ? "default" : isHoveringMoveZone ? "move" : "text" }}
-      onMouseDown={handlePointerDown}
-      onMouseMove={handlePointerMove}
-      onMouseLeave={handlePointerLeave}
-      onTouchStart={handlePointerDown}
-    >
-      {/* Border highlight — confirms the move zone is active */}
-      <div
-        className={`pointer-events-none absolute inset-0 rounded border-2 transition-colors ${
-          isHoveringMoveZone ? "border-blue-500" : "border-transparent group-hover:border-blue-300"
-        }`}
-      />
+    ref={boxRef}
+    className="group pointer-events-auto absolute"
+    style={{
+      left,
+      top,
+      width,
+      height,
+      cursor: readOnly ? "default" : isHoveringMoveZone ? "move" : "text",
+    }}
+    onMouseDown={handlePointerDown}
+    onMouseMove={handlePointerMove}
+    onMouseLeave={handlePointerLeave}
+    onTouchStart={handlePointerDown}
+  >
+    {/* Border — always visible, blue when hovering move zone */}
+    <div
+      className="pointer-events-none absolute inset-0 rounded border-2 transition-colors"
+      style={{
+        borderColor: isHoveringMoveZone ? "#3b82f6" : "#93c5fd",
+      }}
+    />
 
-      {/* 4-direction move icon, shown while hovering/dragging the border */}
-      {isHoveringMoveZone && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="rounded bg-gray-400 px-1 text-xs text-white shadow mt-4">&#x2723;</span>
+    {/* Move icon — always visible */}
+    {!readOnly && (
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <span
+          className="rounded px-1 text-xs text-white shadow"
+          style={{ backgroundColor: isHoveringMoveZone ? "#3b82f6" : "#93c5fd" }}
+        >
+          ✛
+        </span>
+      </div>
+    )}
+
+    <textarea
+      ref={textareaRef}
+      value={annotation.text || ""}
+      onChange={(e) => onUpdate(annotation.id, { text: e.target.value })}
+      readOnly={readOnly}
+      placeholder={readOnly ? "" : "Type here..."}
+      style={{
+        width: "100%",
+        height: "100%",
+        fontSize: annotation.fontSize || 14,
+        color: annotation.color || "#000000",
+        resize: "none",
+        overflow: "auto",
+        backgroundColor: "transparent",
+      }}
+      className="rounded border-0 bg-transparent px-1 py-0.5 focus:outline-none"
+    />
+
+    {!readOnly && (
+      <>
+        {/* ✕ delete button — always visible, top-right */}
+        <button
+          onClick={() => onRemove(annotation.id)}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            onRemove(annotation.id);
+          }}
+          className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white shadow"
+        >
+          ✕
+        </button>
+
+        {/* Resize handle — always visible, bottom-right */}
+        <div
+          onMouseDown={handleResizeStart}
+          onTouchStart={handleResizeStart}
+          className="absolute -bottom-1 -right-1 flex h-5 w-5 cursor-nwse-resize items-center justify-center rounded-sm bg-blue-500 shadow"
+          title="Drag to resize"
+        >
+          <span className="text-xs text-white leading-none">⤡</span>
         </div>
-      )}
-
-      <textarea
-        ref={textareaRef}
-        value={annotation.text || ""}
-        onChange={(e) => onUpdate(annotation.id, { text: e.target.value })}
-        readOnly={readOnly}
-        placeholder={readOnly ? "" : "Type here..."}
-        style={{
-          width: "100%",
-          height: "100%",
-          fontSize: annotation.fontSize || 14,
-          color: annotation.color || "#000000",
-          resize: "none",
-          overflow: "auto",
-        }}
-        className="rounded border border-blue-300 bg-transparent px-1 py-0.5 focus:border-blue-500 focus:outline-none"
-      />
-
-      {!readOnly && (
-        <>
-          <button
-            onClick={() => onRemove(annotation.id)}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="absolute -right-2 -top-2 hidden h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white group-hover:flex"
-          >
-            ✕
-          </button>
-
-          <div
-            onMouseDown={handleResizeStart}
-            onTouchStart={handleResizeStart}
-            className="absolute -right-1 -bottom-1 h-3 w-3 cursor-nwse-resize rounded-sm border border-white bg-blue-500 opacity-0 group-hover:opacity-100"
-            title="Drag to resize"
-          />
-        </>
-      )}
-    </div>
+      </>
+    )}
+  </div>
   );
 }
