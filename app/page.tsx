@@ -90,7 +90,7 @@ export default function HomePage() {
       </main>
 
       <footer
-        className="py-6 text-center text-sm text-gray-300"
+        className="mt-auto py-6 text-center text-sm text-gray-300"
         style={{ backgroundColor: theme.footerDark }}
       >
         © 2026 ESL Pals. All rights reserved.
