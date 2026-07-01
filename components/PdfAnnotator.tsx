@@ -198,10 +198,10 @@ function PageWithOverlay({
           text: "",
           color: "#000000",
           fontSize: 14,
-      });
-    onModeChange("select");
-    }
-    
+        });
+        setTimeout(() => onModeChange("select"), 100);
+      }
+          
   }
 
 
@@ -290,11 +290,13 @@ function PageWithOverlay({
         renderTextLayer={false}
         renderAnnotationLayer={false}
         onRenderSuccess={(page) => {
-            setRenderedSize({ width: page.width, height: page.height });
+          setRenderedSize({ width: page.width, height: page.height });
         }}
       />
 
-      {/* Transparent overlay, sized and positioned exactly over the rendered page */}
+      {/* Single overlay div contains EVERYTHING interactive —
+          SVG strokes, text boxes, and the event handlers.
+          Text boxes are children so their stopPropagation works. */}
       <div
         ref={overlayRef}
         onMouseDown={handleMouseDown}
@@ -311,50 +313,51 @@ function PageWithOverlay({
           cursor: readOnly ? "default" : mode === "draw" ? "crosshair" : mode === "text" ? "text" : "default",
           touchAction: mode === "draw" ? "none" : "auto",
         }}
-      />
-
-      <svg
-        className="pointer-events-none absolute left-0 top-0"
-        width={renderedSize.width}
-        height={renderedSize.height}
       >
-        {annotations
-          .filter((a) => a.type === "draw" && a.path)
-          .map((a) => (
+        <svg
+          className="pointer-events-none absolute left-0 top-0"
+          width={renderedSize.width}
+          height={renderedSize.height}
+          style={{ zIndex: 0 }}
+        >
+          {annotations
+            .filter((a) => a.type === "draw" && a.path)
+            .map((a) => (
+              <polyline
+                key={a.id}
+                points={pathToPoints(a.path!)}
+                fill="none"
+                stroke={a.color || "#000"}
+                strokeWidth={a.strokeWidth || 2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+          {currentStroke && (
             <polyline
-              key={a.id}
-              points={pathToPoints(a.path!)}
+              points={pathToPoints(currentStroke)}
               fill="none"
-              stroke={a.color || "#000"}
-              strokeWidth={a.strokeWidth || 2}
+              stroke={drawColor}
+              strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-          ))}
-        {currentStroke && (
-          <polyline
-            points={pathToPoints(currentStroke)}
-            fill="none"
-            stroke={drawColor}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
-      </svg>
+          )}
+        </svg>
 
-      {annotations
-        .filter((a) => a.type === "text")
-        .map((a) => (
-          <TextAnnotationBox
-            key={a.id}
-            annotation={a}
-            renderedSize={renderedSize}
-            readOnly={readOnly}
-            onUpdate={onUpdate}
-            onRemove={onRemove}
-          />
-        ))}
+        {annotations
+          .filter((a) => a.type === "text")
+          .map((a) => (
+            <TextAnnotationBox
+              key={a.id}
+              annotation={a}
+              renderedSize={renderedSize}
+              readOnly={readOnly}
+              onUpdate={onUpdate}
+              onRemove={onRemove}
+            />
+          ))}
+      </div>
     </div>
   );
 }
