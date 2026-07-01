@@ -60,3 +60,28 @@ export async function PATCH(
 
   return NextResponse.json(course);
 }
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ courseId: string }> }
+) {
+  const session = await auth();
+  if (!session?.user || (session.user as any).role !== "teacher") {
+    return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+  }
+
+  const { courseId } = await params;
+  const teacherId = (session.user as any).id;
+
+  await connectDB();
+  const course = await Course.findById(courseId);
+  if (!course) {
+    return NextResponse.json({ error: "Course not found." }, { status: 404 });
+  }
+  if (course.teacherId.toString() !== teacherId) {
+    return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+  }
+
+  await Course.deleteOne({ _id: courseId });
+  return NextResponse.json({ success: true });
+}

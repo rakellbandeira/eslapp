@@ -57,6 +57,15 @@ export default function TeacherCoursesPage() {
     loadCourses();
   }
 
+  async function handleDeleteCourse(courseId: string) {
+    const confirmed = window.confirm(
+      "Delete this course? All modules, submodules, and student progress inside it will be permanently lost."
+    );
+    if (!confirmed) return;
+    await fetch(`/api/courses/${courseId}`, { method: "DELETE" });
+    loadCourses();
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
       <div className="mb-8 flex items-center justify-between">
@@ -132,10 +141,10 @@ export default function TeacherCoursesPage() {
       ) : (
         <ul className="space-y-3">
           {courses.map((course) => (
-            <li key={course._id}>
+            <li key={course._id} className="flex items-center gap-2">
               <Link
                 href={`/teacher/courses/${course._id}`}
-                className="block rounded-xl p-5 transition-shadow hover:shadow-md"
+                className="flex-1 block rounded-xl p-5 transition-shadow hover:shadow-md"
                 style={{
                   backgroundColor: "#FFFFFF",
                   boxShadow: theme.cardShadow,
@@ -161,6 +170,14 @@ export default function TeacherCoursesPage() {
                   <p className="mt-1 text-sm text-gray-500">{course.description}</p>
                 )}
               </Link>
+              <button
+                onClick={() => handleDeleteCourse(course._id)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#E57373" }}
+                title="Delete course"
+              >
+                Delete
+              </button>
             </li>
           ))}
         </ul>

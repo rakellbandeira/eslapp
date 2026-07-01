@@ -29,6 +29,8 @@ export default function CourseDetailPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTogglingPublish, setIsTogglingPublish] = useState(false);
+  const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
+  const [editingModuleTitle, setEditingModuleTitle] = useState("");
 
   async function loadData() {
     setIsLoading(true);
@@ -80,6 +82,26 @@ export default function CourseDetailPage() {
 
     if (res.ok) setCourse(await res.json());
     setIsTogglingPublish(false);
+  }
+
+  async function handleDeleteModule(moduleId: string) {
+    const confirmed = window.confirm(
+      "Delete this module? All submodules and content inside it will be permanently lost."
+    );
+    if (!confirmed) return;
+    await fetch(`/api/modules/${moduleId}`, { method: "DELETE" });
+    loadData();
+  }
+
+  async function handleSaveModuleTitle(moduleId: string) {
+    if (!editingModuleTitle.trim()) return;
+    await fetch(`/api/modules/${moduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editingModuleTitle }),
+    });
+    setEditingModuleId(null);
+    loadData();
   }
 
   if (isLoading) return <p className="px-4 py-12 text-gray-400">Loading...</p>;
@@ -143,24 +165,81 @@ export default function CourseDetailPage() {
         </div>
       ) : (
         <ul className="space-y-2">
+          
           {modules.map((mod, index) => (
-            <li key={mod._id}>
-              <Link
-                href={`/teacher/courses/${courseId}/modules/${mod._id}`}
-                className="block rounded-xl p-5 transition-shadow hover:shadow-md"
-                style={{
-                  backgroundColor: "#FFFFFF",
-                  boxShadow: theme.cardShadow,
-                  borderLeft: `4px solid ${theme.primary}`,
-                }}
-              >
-                <span className="text-xs font-medium uppercase text-gray-400">
-                  Module {index + 1}
-                </span>
-                <h3 className="font-semibold" style={{ color: theme.primaryDark }}>
-                  {mod.title}
-                </h3>
-              </Link>
+            <li key={mod._id} className="flex items-center gap-2">
+              {editingModuleId === mod._id ? (
+                <div className="flex flex-1 items-center gap-2 rounded-xl p-3"
+                  style={{ backgroundColor: "#FFFFFF", boxShadow: theme.cardShadow }}
+                >
+                  <input
+                    type="text"
+                    value={editingModuleTitle}
+                    onChange={(e) => setEditingModuleTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveModuleTitle(mod._id);
+                      if (e.key === "Escape") setEditingModuleId(null);
+                    }}
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2"
+                    style={{ "--tw-ring-color": theme.primary } as React.CSSProperties}
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => handleSaveModuleTitle(mod._id)}
+                    className="rounded-lg px-3 py-1.5 text-sm font-medium text-white"
+                    style={{ backgroundColor: theme.accent }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingModuleId(null)}
+                    className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href={`/teacher/courses/${courseId}/modules/${mod._id}`}
+                  className="flex-1 block rounded-xl p-5 transition-shadow hover:shadow-md"
+                  style={{
+                    backgroundColor: "#FFFFFF",
+                    boxShadow: theme.cardShadow,
+                    borderLeft: `4px solid ${theme.primary}`,
+                  }}
+                >
+                  <span className="text-xs font-medium uppercase text-gray-400">
+                    Module {index + 1}
+                  </span>
+                  <h3 className="font-semibold" style={{ color: theme.primaryDark }}>
+                    {mod.title}
+                  </h3>
+                </Link>
+              )}
+
+              {editingModuleId !== mod._id && (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingModuleId(mod._id);
+                      setEditingModuleTitle(mod.title);
+                    }}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: theme.primaryDark }}
+                    title="Edit module title"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteModule(mod._id)}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: "#E57373" }}
+                    title="Delete module"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </li>
           ))}
         </ul>

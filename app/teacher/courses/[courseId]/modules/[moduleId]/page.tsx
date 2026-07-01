@@ -41,6 +41,8 @@ export default function ModuleDetailPage() {
   const [newType, setNewType] = useState<"page" | "quiz" | "pdf_exercise">("page");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingSubmoduleId, setEditingSubmoduleId] = useState<string | null>(null);
+  const [editingSubmoduleTitle, setEditingSubmoduleTitle] = useState("");
 
   async function loadData() {
     setIsLoading(true);
@@ -92,6 +94,17 @@ export default function ModuleDetailPage() {
     await fetch(`/api/modules/${moduleId}/submodules/${submoduleId}`, {
       method: "DELETE",
     });
+    loadData();
+  }
+
+  async function handleSaveSubmoduleTitle(submoduleId: string) {
+    if (!editingSubmoduleTitle.trim()) return;
+    await fetch(`/api/submodules/${submoduleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editingSubmoduleTitle }),
+    });
+    setEditingSubmoduleId(null);
     loadData();
   }
 
@@ -159,39 +172,88 @@ export default function ModuleDetailPage() {
 
           {submodules.map((sub, index) => (
             <li key={sub._id} className="flex items-center gap-2">
-              <Link
-                href={`/teacher/courses/${courseId}/modules/${moduleId}/submodules/${sub._id}`}
-                className="flex flex-1 items-center justify-between rounded-xl p-5 transition-shadow hover:shadow-md"
-                style={{
-                  backgroundColor: "#FFFFFF",
-                  boxShadow: theme.cardShadow,
-                  borderLeft: `4px solid ${theme.primary}`,
-                }}
-              >
-                <div>
-                  <span className="text-xs font-medium uppercase text-gray-400">#{index + 1}</span>
-                  <h3 className="font-semibold" style={{ color: theme.primaryDark }}>
-                    {sub.title}
-                  </h3>
+              {editingSubmoduleId === sub._id ? (
+                <div
+                  className="flex flex-1 items-center gap-2 rounded-xl p-3"
+                  style={{ backgroundColor: "#FFFFFF", boxShadow: theme.cardShadow }}
+                >
+                  <input
+                    type="text"
+                    value={editingSubmoduleTitle}
+                    onChange={(e) => setEditingSubmoduleTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveSubmoduleTitle(sub._id);
+                      if (e.key === "Escape") setEditingSubmoduleId(null);
+                    }}
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2"
+                    style={{ "--tw-ring-color": theme.primary } as React.CSSProperties}
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => handleSaveSubmoduleTitle(sub._id)}
+                    className="rounded-lg px-3 py-1.5 text-sm font-medium text-white"
+                    style={{ backgroundColor: theme.accent }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingSubmoduleId(null)}
+                    className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
                 </div>
-                <span
-                  className="rounded-full px-3 py-1 text-xs font-medium"
+              ) : (
+                <Link
+                  href={`/teacher/courses/${courseId}/modules/${moduleId}/submodules/${sub._id}`}
+                  className="flex flex-1 items-center justify-between rounded-xl p-5 transition-shadow hover:shadow-md"
                   style={{
-                    backgroundColor: TYPE_STYLES[sub.type].bg,
-                    color: TYPE_STYLES[sub.type].color,
+                    backgroundColor: "#FFFFFF",
+                    boxShadow: theme.cardShadow,
+                    borderLeft: `4px solid ${theme.primary}`,
                   }}
                 >
-                  {TYPE_LABELS[sub.type]}
-                </span>
-              </Link>
-              <button
-                onClick={() => handleDeleteSubmodule(sub._id)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: "#E57373" }}
-                title="Delete submodule"
-              >
-                Delete
-              </button>
+                  <div>
+                    <span className="text-xs font-medium uppercase text-gray-400">#{index + 1}</span>
+                    <h3 className="font-semibold" style={{ color: theme.primaryDark }}>
+                      {sub.title}
+                    </h3>
+                  </div>
+                  <span
+                    className="rounded-full px-3 py-1 text-xs font-medium"
+                    style={{
+                      backgroundColor: TYPE_STYLES[sub.type].bg,
+                      color: TYPE_STYLES[sub.type].color,
+                    }}
+                  >
+                    {TYPE_LABELS[sub.type]}
+                  </span>
+                </Link>
+              )}
+
+              {editingSubmoduleId !== sub._id && (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingSubmoduleId(sub._id);
+                      setEditingSubmoduleTitle(sub.title);
+                    }}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: theme.primaryDark }}
+                    title="Edit submodule title"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSubmodule(sub._id)}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: "#E57373" }}
+                    title="Delete submodule"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </li>
           ))}
 
