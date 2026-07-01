@@ -42,17 +42,22 @@ export default function PdfAnnotator({
   const [numPages, setNumPages] = useState(0);
   const [mode, setMode] = useState<"draw" | "text" | "select" | "erase">("select");
   const [drawColor, setDrawColor] = useState(DRAW_COLORS[0]);
-  const [pageWidth, setPageWidth] = useState(700);
+  const [baseWidth, setBaseWidth] = useState(700);
   const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
-  const pinchStartDistance = useRef<number | null>(null);
-  const pinchStartZoom = useRef<number>(1);
 
+  // Measure the container once on mount to set the base (100%) page width
   useEffect(() => {
     if (containerRef.current) {
-      setPageWidth(Math.min(containerRef.current.clientWidth, 800));
+      setBaseWidth(Math.min(containerRef.current.clientWidth, 800));
     }
   }, []);
+
+  const pageWidth = Math.round(baseWidth * zoom);
+
+  function adjustZoom(delta: number) {
+    setZoom((prev) => Math.min(Math.max(0.5, prev + delta), 3));
+  }
 
   function addAnnotation(annotation: Annotation) {
     onAnnotationsChange([...annotations, annotation]);
@@ -112,49 +117,9 @@ export default function PdfAnnotator({
     onAnnotationsChange(expanded);
   }
 
-  function handleContainerTouchStart(e: React.TouchEvent) {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      pinchStartDistance.current = Math.sqrt(dx * dx + dy * dy);
-      pinchStartZoom.current = zoom;
-    }
-  }
-
-  function handleContainerTouchMove(e: React.TouchEvent) {
-    if (e.touches.length === 2 && pinchStartDistance.current !== null) {
-      e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const currentDistance = Math.sqrt(dx * dx + dy * dy);
-      const scale = currentDistance / pinchStartDistance.current;
-      const newZoom = Math.min(Math.max(0.5, pinchStartZoom.current * scale), 3);
-      setZoom(newZoom);
-      if (containerRef.current) {
-        setPageWidth(Math.min(containerRef.current.clientWidth, 800) * newZoom);
-      }
-    }
-  }
-
-  function handleContainerTouchEnd() {
-    pinchStartDistance.current = null;
-  }
-
-  function adjustZoom(delta: number) {
-    const newZoom = Math.min(Math.max(0.5, zoom + delta), 3);
-    setZoom(newZoom);
-    if (containerRef.current) {
-      setPageWidth(Math.min(containerRef.current.clientWidth, 800) * newZoom);
-    }
-  }
-
   return (
-    <div
-      ref={containerRef}
-      onTouchStart={handleContainerTouchStart}
-      onTouchMove={handleContainerTouchMove}
-      onTouchEnd={handleContainerTouchEnd}
-    >
+    // Outer ref measures available width; no touch handlers here anymore
+    <div ref={containerRef}>
       {!readOnly && (
         <div
           className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-gray-50 p-2"
@@ -198,35 +163,60 @@ export default function PdfAnnotator({
 
           <div className="h-6 w-px bg-gray-300" />
 
-          <button onClick={() => adjustZoom(-0.25)} className="rounded px-2 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100">−</button>
-          <span className="text-xs text-gray-500">{Math.round(zoom * 100)}%</span>
-          <button onClick={() => adjustZoom(0.25)} className="rounded px-2 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100">+</button>
+          <button
+            onClick={() => adjustZoom(-0.25)}
+            className="rounded px-2 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100"
+          >
+            −
+          </button>
+          <span className="min-w-[3rem] text-center text-xs text-gray-500">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            onClick={() => adjustZoom(0.25)}
+            className="rounded px-2 py-1 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100"
+          >
+            +
+          </button>
         </div>
       )}
 
-      <Document
-        file={fileUrl}
-        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-        loading={<p className="p-8 text-gray-500">Loading PDF...</p>}
-        error={<p className="p-8 text-red-600">Could not load PDF.</p>}
+      {/*
+        Scrollable container: when the PDF is zoomed wider than the screen,
+        content scrolls horizontally inside this box instead of bleeding outside.
+        On mobile, two-finger swipe scrolls; on desktop, click+drag or scrollbar.
+      */}
+      <div
+        style={{
+          overflowX: "auto",
+          overflowY: "visible",
+          WebkitOverflowScrolling: "touch",
+        }}
       >
-        {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
-          <PageWithOverlay
-            key={pageNum}
-            pageNum={pageNum}
-            pageWidth={Math.round(pageWidth)}
-            mode={mode}
-            drawColor={drawColor}
-            readOnly={readOnly}
-            annotations={annotations.filter((a) => a.page === pageNum)}
-            onAdd={addAnnotation}
-            onUpdate={updateAnnotation}
-            onRemove={removeAnnotation}
-            onModeChange={setMode}
-            onErase={applyEraserToAnnotations}
-          />
-        ))}
-      </Document>
+        <Document
+          file={fileUrl}
+          onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+          loading={<p className="p-8 text-gray-500">Loading PDF...</p>}
+          error={<p className="p-8 text-red-600">Could not load PDF.</p>}
+        >
+          {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
+            <PageWithOverlay
+              key={pageNum}
+              pageNum={pageNum}
+              pageWidth={pageWidth}
+              mode={mode}
+              drawColor={drawColor}
+              readOnly={readOnly}
+              annotations={annotations.filter((a) => a.page === pageNum)}
+              onAdd={addAnnotation}
+              onUpdate={updateAnnotation}
+              onRemove={removeAnnotation}
+              onModeChange={setMode}
+              onErase={applyEraserToAnnotations}
+            />
+          ))}
+        </Document>
+      </div>
     </div>
   );
 }
@@ -283,9 +273,8 @@ function PageWithOverlay({
       setCurrentEraserPath([getPointFromClient(e.clientX, e.clientY)]);
     } else if (mode === "text") {
       const point = getPointFromClient(e.clientX, e.clientY);
-      const id = `txt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       onAdd({
-        id,
+        id: `txt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         type: "text",
         page: pageNum,
         x: point.x,
@@ -310,7 +299,16 @@ function PageWithOverlay({
 
   function handleMouseUp() {
     if (mode === "draw" && isDrawing.current && currentStroke && currentStroke.length > 1) {
-      onAdd({ id: `draw-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "draw", page: pageNum, x: 0, y: 0, path: currentStroke, color: drawColor, strokeWidth: 2 });
+      onAdd({
+        id: `draw-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: "draw",
+        page: pageNum,
+        x: 0,
+        y: 0,
+        path: currentStroke,
+        color: drawColor,
+        strokeWidth: 2,
+      });
     } else if (mode === "erase" && isErasing.current && currentEraserPath) {
       onErase(currentEraserPath);
     }
@@ -320,6 +318,8 @@ function PageWithOverlay({
     setCurrentEraserPath(null);
   }
 
+  // Single-finger touch: draw or erase
+  // Two-finger touch: falls through to the scrollable container naturally
   function handleTouchStart(e: React.TouchEvent) {
     if (readOnly || e.touches.length !== 1) return;
     if (mode === "draw") {
@@ -348,7 +348,16 @@ function PageWithOverlay({
     if (mode === "draw" && isDrawing.current) {
       e.preventDefault();
       if (currentStroke && currentStroke.length > 1) {
-        onAdd({ id: `draw-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "draw", page: pageNum, x: 0, y: 0, path: currentStroke, color: drawColor, strokeWidth: 3 });
+        onAdd({
+          id: `draw-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: "draw",
+          page: pageNum,
+          x: 0,
+          y: 0,
+          path: currentStroke,
+          color: drawColor,
+          strokeWidth: 3,
+        });
       }
     } else if (mode === "erase" && isErasing.current) {
       e.preventDefault();
@@ -389,19 +398,54 @@ function PageWithOverlay({
           width: renderedSize.width,
           height: renderedSize.height,
           zIndex: 10,
-          cursor: readOnly ? "default" : mode === "draw" ? "crosshair" : mode === "erase" ? `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='${eraserCursorSize}' height='${eraserCursorSize}'><circle cx='${eraserCursorSize/2}' cy='${eraserCursorSize/2}' r='${eraserCursorSize/2-1}' fill='none' stroke='gray' stroke-width='1'/></svg>") ${eraserCursorSize/2} ${eraserCursorSize/2}, cell` : mode === "text" ? "text" : "default",
+          cursor: readOnly
+            ? "default"
+            : mode === "draw"
+            ? "crosshair"
+            : mode === "erase"
+            ? `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='${eraserCursorSize}' height='${eraserCursorSize}'><circle cx='${eraserCursorSize / 2}' cy='${eraserCursorSize / 2}' r='${eraserCursorSize / 2 - 1}' fill='none' stroke='gray' stroke-width='1'/></svg>") ${eraserCursorSize / 2} ${eraserCursorSize / 2}, cell`
+            : mode === "text"
+            ? "text"
+            : "default",
           touchAction: mode === "draw" || mode === "erase" ? "none" : "auto",
         }}
       >
-        <svg className="pointer-events-none absolute left-0 top-0" width={renderedSize.width} height={renderedSize.height} style={{ zIndex: 0 }}>
+        <svg
+          className="pointer-events-none absolute left-0 top-0"
+          width={renderedSize.width}
+          height={renderedSize.height}
+          style={{ zIndex: 0 }}
+        >
           {annotations.filter((a) => a.type === "draw" && a.path).map((a) => (
-            <polyline key={a.id} points={pathToPoints(a.path!)} fill="none" stroke={a.color || "#000"} strokeWidth={a.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" />
+            <polyline
+              key={a.id}
+              points={pathToPoints(a.path!)}
+              fill="none"
+              stroke={a.color || "#000"}
+              strokeWidth={a.strokeWidth || 2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           ))}
           {currentStroke && (
-            <polyline points={pathToPoints(currentStroke)} fill="none" stroke={drawColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <polyline
+              points={pathToPoints(currentStroke)}
+              fill="none"
+              stroke={drawColor}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           )}
           {currentEraserPath && (
-            <polyline points={pathToPoints(currentEraserPath)} fill="none" stroke="rgba(239,68,68,0.4)" strokeWidth={Math.round(ERASER_RADIUS * renderedSize.width * 2)} strokeLinecap="round" strokeLinejoin="round" />
+            <polyline
+              points={pathToPoints(currentEraserPath)}
+              fill="none"
+              stroke="rgba(239,68,68,0.4)"
+              strokeWidth={Math.round(ERASER_RADIUS * renderedSize.width * 2)}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           )}
         </svg>
 
@@ -455,12 +499,17 @@ function TextAnnotationBox({
   const height = (annotation.height || 0.08) * renderedSize.height;
 
   function isInBorderZone(localX: number, localY: number): boolean {
-    return localX <= BORDER_ZONE || localX >= width - BORDER_ZONE || localY <= BORDER_ZONE || localY >= height - BORDER_ZONE;
+    return (
+      localX <= BORDER_ZONE ||
+      localX >= width - BORDER_ZONE ||
+      localY <= BORDER_ZONE ||
+      localY >= height - BORDER_ZONE
+    );
   }
 
   function getClientXY(e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) {
     if ("touches" in e) {
-      const t = (e.touches[0] || (e as TouchEvent).changedTouches?.[0]);
+      const t = e.touches[0] || (e as TouchEvent).changedTouches?.[0];
       return { clientX: t?.clientX ?? 0, clientY: t?.clientY ?? 0 };
     }
     return { clientX: (e as MouseEvent).clientX, clientY: (e as MouseEvent).clientY };
@@ -488,21 +537,19 @@ function TextAnnotationBox({
     e.stopPropagation();
   }
 
-  function startDrag(startClientX: number, startClientY: number) {
+  function startDrag(startX: number, startY: number) {
     isDragging.current = true;
     setIsHoveringMoveZone(true);
-    dragStart.current = { x: startClientX, y: startClientY, boxX: annotation.x, boxY: annotation.y };
+    dragStart.current = { x: startX, y: startY, boxX: annotation.x, boxY: annotation.y };
 
     function handleMove(ev: MouseEvent | TouchEvent) {
       if (!isDragging.current) return;
       const { clientX, clientY } = getClientXY(ev);
-      const deltaX = clientX - dragStart.current.x;
-      const deltaY = clientY - dragStart.current.y;
       const widthFrac = annotation.width || 0.3;
       const heightFrac = annotation.height || 0.08;
       onUpdate(annotation.id, {
-        x: Math.min(Math.max(0, dragStart.current.boxX + deltaX / renderedSize.width), 1 - widthFrac),
-        y: Math.min(Math.max(0, dragStart.current.boxY + deltaY / renderedSize.height), 1 - heightFrac),
+        x: Math.min(Math.max(0, dragStart.current.boxX + (clientX - dragStart.current.x) / renderedSize.width), 1 - widthFrac),
+        y: Math.min(Math.max(0, dragStart.current.boxY + (clientY - dragStart.current.y) / renderedSize.height), 1 - heightFrac),
       });
     }
 
@@ -554,7 +601,13 @@ function TextAnnotationBox({
     <div
       ref={boxRef}
       className="group pointer-events-auto absolute"
-      style={{ left, top, width, height, cursor: readOnly ? "default" : isHoveringMoveZone ? "move" : "text" }}
+      style={{
+        left,
+        top,
+        width,
+        height,
+        cursor: readOnly ? "default" : isHoveringMoveZone ? "move" : "text",
+      }}
       onMouseDown={handlePointerDown}
       onMouseMove={handlePointerMove}
       onMouseLeave={handlePointerLeave}
@@ -567,7 +620,10 @@ function TextAnnotationBox({
 
       {!readOnly && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="rounded px-1 text-xs text-white shadow" style={{ backgroundColor: isHoveringMoveZone ? "#3b82f6" : "#93c5fd" }}>
+          <span
+            className="rounded px-1 text-xs text-white shadow"
+            style={{ backgroundColor: isHoveringMoveZone ? "#3b82f6" : "#93c5fd" }}
+          >
             ✛
           </span>
         </div>
@@ -579,7 +635,15 @@ function TextAnnotationBox({
         onChange={(e) => onUpdate(annotation.id, { text: e.target.value })}
         readOnly={readOnly}
         placeholder={readOnly ? "" : "Type here..."}
-        style={{ width: "100%", height: "100%", fontSize: annotation.fontSize || 14, color: annotation.color || "#000000", resize: "none", overflow: "auto", backgroundColor: "transparent" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          fontSize: annotation.fontSize || 14,
+          color: annotation.color || "#000000",
+          resize: "none",
+          overflow: "auto",
+          backgroundColor: "transparent",
+        }}
         className="rounded border-0 bg-transparent px-1 py-0.5 focus:outline-none"
       />
 
@@ -588,7 +652,10 @@ function TextAnnotationBox({
           <button
             onClick={() => onRemove(annotation.id)}
             onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => { e.stopPropagation(); onRemove(annotation.id); }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              onRemove(annotation.id);
+            }}
             className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white shadow"
           >
             ✕
