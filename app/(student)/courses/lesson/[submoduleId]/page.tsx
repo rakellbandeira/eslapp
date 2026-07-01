@@ -70,10 +70,12 @@ export default function LessonPage() {
         {blocks.map((block, index) => (
           <div key={index} className="border-b border-gray-100 px-6 py-4 last:border-b-0">
             {block.type === "text" && (
-              <div
-                className="prose prose-sm max-w-none [&_.ProseMirror]:text-black"
-                dangerouslySetInnerHTML={{ __html: block.html || "" }}
-              />
+              <div className="overflow-x-auto">
+                <div
+                  className="prose prose-sm max-w-none [&_.ProseMirror]:text-black [&_table]:w-full [&_table]:border-collapse [&_table]:table-fixed [&_td]:break-words [&_td]:align-top [&_td]:p-2 [&_td]:border [&_td]:border-gray-300 [&_th]:break-words [&_th]:align-top [&_th]:p-2 [&_th]:border [&_th]:border-gray-300"
+                  dangerouslySetInnerHTML={{ __html: block.html || "" }}
+                />
+              </div>
             )}
 
             {block.type === "image" && block.url && (
