@@ -18,9 +18,9 @@ export interface Annotation {
   height?: number;
   text?: string;
   color?: string;
-  fontSize?: number;
+  fontSize?: number;      // stored as FRACTION of page width, not pixels
   path?: { x: number; y: number }[];
-  strokeWidth?: number;
+  strokeWidth?: number;   // stored as FRACTION of page width, not pixels
 }
 
 interface PdfAnnotatorProps {
@@ -32,6 +32,13 @@ interface PdfAnnotatorProps {
 
 const DRAW_COLORS = ["#1e3a8a", "#7f1d1d", "#14532d", "#000000"];
 const ERASER_RADIUS = 0.015;
+
+// ─── TUNE THESE TO ADJUST DEFAULT SIZES ───────────────────────────────────────
+// Both are fractions of page width, so they stay visually consistent at any zoom.
+// At 800px page width: 0.003 × 800 = 2.4px stroke | 0.018 × 800 ≈ 14px font
+const STROKE_WIDTH_FRACTION = 0.003;   // ← change this to make strokes thicker/thinner
+const FONT_SIZE_FRACTION    = 0.018;   // ← change this to make text larger/smaller
+// ──────────────────────────────────────────────────────────────────────────────
 
 export default function PdfAnnotator({
   fileUrl,
@@ -46,7 +53,6 @@ export default function PdfAnnotator({
   const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Measure the container once on mount to set the base (100%) page width
   useEffect(() => {
     if (containerRef.current) {
       setBaseWidth(Math.min(containerRef.current.clientWidth, 800));
@@ -118,7 +124,6 @@ export default function PdfAnnotator({
   }
 
   return (
-    // Outer ref measures available width; no touch handlers here anymore
     <div ref={containerRef}>
       {!readOnly && (
         <div
@@ -181,18 +186,7 @@ export default function PdfAnnotator({
         </div>
       )}
 
-      {/*
-        Scrollable container: when the PDF is zoomed wider than the screen,
-        content scrolls horizontally inside this box instead of bleeding outside.
-        On mobile, two-finger swipe scrolls; on desktop, click+drag or scrollbar.
-      */}
-      <div
-        style={{
-          overflowX: "auto",
-          overflowY: "visible",
-          WebkitOverflowScrolling: "touch",
-        }}
-      >
+      <div style={{ overflowX: "auto", overflowY: "visible", WebkitOverflowScrolling: "touch" }}>
         <Document
           file={fileUrl}
           onLoadSuccess={({ numPages }) => setNumPages(numPages)}
@@ -280,10 +274,11 @@ function PageWithOverlay({
         x: point.x,
         y: point.y,
         width: 0.3,
-        height: 24 / renderedSize.height,
+        // Single-line height as a fraction, matching FONT_SIZE_FRACTION + padding
+        height: (FONT_SIZE_FRACTION * 1.6),
         text: "",
         color: "#000000",
-        fontSize: 14,
+        fontSize: FONT_SIZE_FRACTION,   // stored as fraction, converted to px at render time
       });
       setTimeout(() => onModeChange("select"), 100);
     }
@@ -307,7 +302,7 @@ function PageWithOverlay({
         y: 0,
         path: currentStroke,
         color: drawColor,
-        strokeWidth: 2,
+        strokeWidth: STROKE_WIDTH_FRACTION,  // stored as fraction
       });
     } else if (mode === "erase" && isErasing.current && currentEraserPath) {
       onErase(currentEraserPath);
@@ -318,8 +313,6 @@ function PageWithOverlay({
     setCurrentEraserPath(null);
   }
 
-  // Single-finger touch: draw or erase
-  // Two-finger touch: falls through to the scrollable container naturally
   function handleTouchStart(e: React.TouchEvent) {
     if (readOnly || e.touches.length !== 1) return;
     if (mode === "draw") {
@@ -356,7 +349,7 @@ function PageWithOverlay({
           y: 0,
           path: currentStroke,
           color: drawColor,
-          strokeWidth: 3,
+          strokeWidth: STROKE_WIDTH_FRACTION,  // stored as fraction
         });
       }
     } else if (mode === "erase" && isErasing.current) {
@@ -371,6 +364,11 @@ function PageWithOverlay({
 
   function pathToPoints(path: { x: number; y: number }[]) {
     return path.map((p) => `${p.x * renderedSize.width},${p.y * renderedSize.height}`).join(" ");
+  }
+
+  // Convert a fraction-based strokeWidth to actual pixels at current zoom
+  function resolveStrokeWidth(fraction: number | undefined): number {
+    return (fraction ?? STROKE_WIDTH_FRACTION) * renderedSize.width;
   }
 
   const eraserCursorSize = Math.round(ERASER_RADIUS * renderedSize.width * 2);
@@ -422,7 +420,7 @@ function PageWithOverlay({
               points={pathToPoints(a.path!)}
               fill="none"
               stroke={a.color || "#000"}
-              strokeWidth={a.strokeWidth || 2}
+              strokeWidth={resolveStrokeWidth(a.strokeWidth)}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -432,7 +430,7 @@ function PageWithOverlay({
               points={pathToPoints(currentStroke)}
               fill="none"
               stroke={drawColor}
-              strokeWidth={2}
+              strokeWidth={resolveStrokeWidth(STROKE_WIDTH_FRACTION)}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -493,10 +491,14 @@ function TextAnnotationBox({
     }
   }, []);
 
-  const left = annotation.x * renderedSize.width;
-  const top = annotation.y * renderedSize.height;
-  const width = (annotation.width || 0.3) * renderedSize.width;
+  const left   = annotation.x * renderedSize.width;
+  const top    = annotation.y * renderedSize.height;
+  const width  = (annotation.width  || 0.3)  * renderedSize.width;
   const height = (annotation.height || 0.08) * renderedSize.height;
+
+  // Convert fraction-based fontSize to actual pixels at current rendered size
+  // Falls back to FONT_SIZE_FRACTION if the annotation predates this change
+  const fontSizePx = (annotation.fontSize ?? FONT_SIZE_FRACTION) * renderedSize.width;
 
   function isInBorderZone(localX: number, localY: number): boolean {
     return (
@@ -545,10 +547,10 @@ function TextAnnotationBox({
     function handleMove(ev: MouseEvent | TouchEvent) {
       if (!isDragging.current) return;
       const { clientX, clientY } = getClientXY(ev);
-      const widthFrac = annotation.width || 0.3;
+      const widthFrac  = annotation.width  || 0.3;
       const heightFrac = annotation.height || 0.08;
       onUpdate(annotation.id, {
-        x: Math.min(Math.max(0, dragStart.current.boxX + (clientX - dragStart.current.x) / renderedSize.width), 1 - widthFrac),
+        x: Math.min(Math.max(0, dragStart.current.boxX + (clientX - dragStart.current.x) / renderedSize.width),  1 - widthFrac),
         y: Math.min(Math.max(0, dragStart.current.boxY + (clientY - dragStart.current.y) / renderedSize.height), 1 - heightFrac),
       });
     }
@@ -557,15 +559,15 @@ function TextAnnotationBox({
       isDragging.current = false;
       setIsHoveringMoveZone(false);
       window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleEnd);
+      window.removeEventListener("mouseup",   handleEnd);
       window.removeEventListener("touchmove", handleMove);
-      window.removeEventListener("touchend", handleEnd);
+      window.removeEventListener("touchend",  handleEnd);
     }
 
     window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleEnd);
+    window.addEventListener("mouseup",   handleEnd);
     window.addEventListener("touchmove", handleMove, { passive: false });
-    window.addEventListener("touchend", handleEnd);
+    window.addEventListener("touchend",  handleEnd);
   }
 
   function handleResizeStart(e: React.MouseEvent | React.TouchEvent) {
@@ -578,7 +580,7 @@ function TextAnnotationBox({
       if (!isResizing.current) return;
       const { clientX: cx, clientY: cy } = getClientXY(ev);
       onUpdate(annotation.id, {
-        width: Math.max(60, resizeStart.current.width + cx - resizeStart.current.x) / renderedSize.width,
+        width:  Math.max(60, resizeStart.current.width  + cx - resizeStart.current.x) / renderedSize.width,
         height: Math.max(24, resizeStart.current.height + cy - resizeStart.current.y) / renderedSize.height,
       });
     }
@@ -586,15 +588,15 @@ function TextAnnotationBox({
     function handleEnd() {
       isResizing.current = false;
       window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleEnd);
+      window.removeEventListener("mouseup",   handleEnd);
       window.removeEventListener("touchmove", handleMove);
-      window.removeEventListener("touchend", handleEnd);
+      window.removeEventListener("touchend",  handleEnd);
     }
 
     window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleEnd);
+    window.addEventListener("mouseup",   handleEnd);
     window.addEventListener("touchmove", handleMove, { passive: false });
-    window.addEventListener("touchend", handleEnd);
+    window.addEventListener("touchend",  handleEnd);
   }
 
   return (
@@ -638,7 +640,9 @@ function TextAnnotationBox({
         style={{
           width: "100%",
           height: "100%",
-          fontSize: annotation.fontSize || 14,
+          // fontSizePx is computed from the fraction × current renderedSize.width
+          // so it scales correctly with zoom — same visual size at any zoom level
+          fontSize: `${fontSizePx}px`,
           color: annotation.color || "#000000",
           resize: "none",
           overflow: "auto",
