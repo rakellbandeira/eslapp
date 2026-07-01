@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 
 interface ContentBlock {
   type: "text" | "image" | "video";
@@ -20,6 +21,8 @@ export default function LessonPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [courseId, setCourseId] = useState<string | null>(null);
   const [isMarkedComplete, setIsMarkedComplete] = useState(false);
+  const [moduleId, setModuleId] = useState<string | null>(null);
+
 
   useEffect(() => {
     async function load() {
@@ -29,6 +32,7 @@ export default function LessonPage() {
 
       const moduleRes = await fetch(`/api/modules/${submoduleData.moduleId}`);
       const moduleData = await moduleRes.json();
+      setModuleId(moduleData._id);  // ← add this
 
       const courseRes = await fetch(`/api/courses/${moduleData.courseId}`);
       const courseData = await courseRes.json();
@@ -64,6 +68,31 @@ export default function LessonPage() {
 
   return (
     <div className="mx-auto max-w-3xl p-8">
+      {/* Breadcrumb */}
+      <nav className="mb-4 flex items-center gap-2 text-sm text-gray-500">
+        <Link href="/dashboard" className="hover:underline" style={{ color: "#7B5EA7" }}>
+          Dashboard
+        </Link>
+        <span>/</span>
+        {courseId && (
+          <>
+            <Link href={`/courses/${courseId}`} className="hover:underline" style={{ color: "#7B5EA7" }}>
+              Course
+            </Link>
+            <span>/</span>
+          </>
+        )}
+        {courseId && moduleId && (
+          <>
+            <Link href={`/courses/${courseId}/modules/${moduleId}`} className="hover:underline" style={{ color: "#7B5EA7" }}>
+              Module
+            </Link>
+            <span>/</span>
+          </>
+        )}
+        <span className="text-gray-900 font-medium">{title}</span>
+      </nav>
+
       <h1 className="mb-6 text-2xl font-semibold text-gray-900">{title}</h1>
 
       <div className="rounded-lg border border-gray-200 bg-white">

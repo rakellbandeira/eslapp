@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 
 interface QuizQuestion {
   question: string;
@@ -111,7 +112,23 @@ export default function TakeQuizPage() {
 
   return (
     <div className="mx-auto max-w-2xl p-8">
-      <h1 className="mb-6 text-2xl font-semibold text-gray-900">Quiz</h1>
+      <nav className="mb-4 flex items-center gap-2 text-sm text-gray-500">
+        <Link href="/dashboard" className="hover:underline" style={{ color: "#7B5EA7" }}>
+          Dashboard
+        </Link>
+        <span>/</span>
+        {courseId && (
+          <>
+            <Link href={`/courses/${courseId}`} className="hover:underline" style={{ color: "#7B5EA7" }}>
+              Course
+            </Link>
+            <span>/</span>
+          </>
+        )}
+        <span className="text-gray-900 font-medium">Quiz</span>
+      </nav>
+
+    <h1 className="mb-6 text-2xl font-semibold text-gray-900">Quiz</h1>
 
       <div className="space-y-4">
         {questions.map((q, qIndex) => (

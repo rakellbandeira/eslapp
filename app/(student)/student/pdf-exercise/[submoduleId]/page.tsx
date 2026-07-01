@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Annotation } from "@/components/PdfAnnotator";
+import Link from "next/link";
 
 const PdfAnnotator = dynamic(() => import("@/components/PdfAnnotator"), {
   ssr: false,
@@ -114,6 +115,14 @@ export default function StudentPdfExercisePage() {
 
   return (
     <div className="mx-auto max-w-4xl p-8">
+      <nav className="mb-4 flex items-center gap-2 text-sm text-gray-500">
+      <Link href="/dashboard" className="hover:underline" style={{ color: "#7B5EA7" }}>
+        Dashboard
+      </Link>
+      <span>/</span>
+      <span className="text-gray-900 font-medium">{exercise.fileName}</span>
+      </nav>
+
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">{exercise.fileName}</h1>
         <div className="flex items-center gap-3">

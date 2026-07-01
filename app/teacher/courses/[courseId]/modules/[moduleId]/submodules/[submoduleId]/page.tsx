@@ -532,12 +532,21 @@ export default function SubmoduleEditorPage() {
 
   return (
     <div className="mx-auto max-w-3xl p-8">
-      <Link
-        href={`/teacher/courses/${courseId}/modules/${moduleId}`}
-        className="text-sm text-blue-600 hover:underline"
-      >
-        ← Back to module
+      <nav className="mb-4 flex items-center gap-2 text-sm text-gray-500">
+      <Link href="/teacher/courses" className="hover:underline" style={{ color: "#7B5EA7" }}>
+        Courses
       </Link>
+      <span>/</span>
+      <Link href={`/teacher/courses/${courseId}`} className="hover:underline" style={{ color: "#7B5EA7" }}>
+        Course
+      </Link>
+      <span>/</span>
+      <Link href={`/teacher/courses/${courseId}/modules/${moduleId}`} className="hover:underline" style={{ color: "#7B5EA7" }}>
+        Module
+      </Link>
+      <span>/</span>
+      <span className="font-medium text-gray-900">{submodule.title}</span>
+    </nav>
 
       <h1 className="mt-4 mb-6 text-2xl font-semibold text-gray-900">{submodule.title}</h1>
 
