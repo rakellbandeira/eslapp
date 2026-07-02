@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { connectDB } from "@/lib/mongodb";
 import { DefaultBooking } from "@/models/DefaultBooking";
 import { AvailabilityRule } from "@/models/AvailabilityRule";
+import { claimExistingOpenSlotsForDefault } from "@/lib/generateSlots";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -20,7 +21,6 @@ export async function GET(req: Request) {
     return NextResponse.json(defaults);
   }
 
-  // Teacher sees every active default booked against them, with student info
   const defaults = await DefaultBooking.find({ teacherId: userId, isActive: true })
     .populate("studentId", "name email")
     .sort({ dayOfWeek: 1, time: 1 });
@@ -40,10 +40,12 @@ export async function POST(req: Request) {
     const { teacherId, dayOfWeek, time } = await req.json();
 
     if (!teacherId || dayOfWeek === undefined || !time) {
-      return NextResponse.json({ error: "teacherId, dayOfWeek, and time are required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "teacherId, dayOfWeek, and time are required." },
+        { status: 400 }
+      );
     }
 
-    // Confirm this day+time actually falls within at least one of the teacher's active rules
     const rules = await AvailabilityRule.find({ teacherId, isActive: true });
     const covered = rules.some((rule) => {
       if (!rule.daysOfWeek.includes(dayOfWeek)) return false;
@@ -56,8 +58,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Confirm no OTHER student already holds this exact day+time as their default
-    const conflict = await DefaultBooking.findOne({ teacherId, dayOfWeek, time, isActive: true });
+    const conflict = await DefaultBooking.findOne({
+      teacherId,
+      dayOfWeek,
+      time,
+      isActive: true,
+    });
     if (conflict && conflict.studentId.toString() !== studentId) {
       return NextResponse.json(
         { error: "That time slot is already someone else's default. Please choose another." },
@@ -72,6 +78,10 @@ export async function POST(req: Request) {
       time,
       isActive: true,
     });
+
+    // Immediately claim all already-generated future open slots matching this default —
+    // this is the fix for "slot stays open even after a default is set"
+    await claimExistingOpenSlotsForDefault(teacherId, studentId, dayOfWeek, time);
 
     return NextResponse.json(defaultBooking, { status: 201 });
   } catch (err) {

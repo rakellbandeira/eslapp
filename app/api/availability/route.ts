@@ -21,7 +21,6 @@ export async function GET(req: Request) {
 
   await connectDB();
 
-  // Keep the requested window's slots up to date before reading them
   if (from && to) {
     await generateSlotsForWindow(teacherId, new Date(from), new Date(to));
   }
@@ -33,6 +32,9 @@ export async function GET(req: Request) {
     if (to) filter.startTime.$lte = new Date(to);
   }
 
-  const slots = await AvailabilitySlot.find(filter).sort({ startTime: 1 });
+  const slots = await AvailabilitySlot.find(filter)
+    .populate("bookedBy", "name email")  // ← this is the fix for problem 3
+    .sort({ startTime: 1 });
+
   return NextResponse.json(slots);
 }
