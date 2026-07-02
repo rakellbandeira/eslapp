@@ -347,53 +347,6 @@ export default function TeacherAvailabilityPage() {
         </ul>
       )}
 
-      {/* ── Upcoming bookings ── */}
-      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
-        Upcoming bookings
-      </h2>
-      {bookedSlots.length === 0 ? (
-        <p className="mb-8 text-gray-400">No bookings yet.</p>
-      ) : (
-        <ul className="mb-8 space-y-2">
-          {bookedSlots.map((s) => (
-            <li
-              key={s._id}
-              className="flex items-center justify-between rounded-xl p-4"
-              style={cardStyle}
-            >
-              <div>
-                <p className="text-sm font-medium" style={{ color: theme.textDark }}>
-                  {s.bookedBy?.name ?? "Unknown student"}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {new Date(s.startTime).toLocaleString(undefined, {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                  {s.isDefaultBooking && (
-                    <span
-                      className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
-                      style={{ backgroundColor: "#DEF7EC", color: theme.accent }}
-                    >
-                      Default
-                    </span>
-                  )}
-                </p>
-              </div>
-              <button
-                onClick={() => cancelBooking(s._id)}
-                className="text-sm font-medium"
-                style={{ color: theme.danger }}
-              >
-                Cancel
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
 
       {/* ── Student video call links ── */}
       <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
@@ -510,6 +463,57 @@ export default function TeacherAvailabilityPage() {
           </p>
         )}
       </div>
+      
+
+      {/* ── Upcoming bookings ── */}
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        Upcoming bookings
+      </h2>
+      {bookedSlots.length === 0 ? (
+        <p className="mb-8 text-gray-400">No bookings yet.</p>
+      ) : (
+        <ul className="mb-8 space-y-2">
+          {bookedSlots.map((s) => (
+            <li
+              key={s._id}
+              className="flex items-center justify-between rounded-xl p-4"
+              style={cardStyle}
+            >
+              <div>
+                <p className="text-sm font-medium" style={{ color: theme.textDark }}>
+                  {s.bookedBy?.name ?? "Unknown student"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {new Date(s.startTime).toLocaleString(undefined, {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                  {s.isDefaultBooking && (
+                    <span
+                      className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
+                      style={{ backgroundColor: "#DEF7EC", color: theme.accent }}
+                    >
+                      Default
+                    </span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => cancelBooking(s._id)}
+                className="text-sm font-medium"
+                style={{ color: theme.danger }}
+              >
+                Cancel
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      
     </div>
   );
 }
