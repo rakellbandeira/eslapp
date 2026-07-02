@@ -22,9 +22,21 @@ export async function GET(req: Request) {
   await connectDB();
 
   if (from && to) {
-    await generateSlotsForWindow(teacherId, new Date(from), new Date(to));
+    // Cap generation to 8 weeks ahead from today regardless of what the
+    // caller requested — generating a full year (1500+ DB ops) in one
+    // serverless function call consistently hits Vercel's 10s timeout.
+    // Slots for dates further out will be generated on-demand when the
+    // teacher/student actually navigates to that month.
+    const generationEnd = new Date();
+    generationEnd.setDate(generationEnd.getDate() + 56); // 8 weeks
+    const cappedTo = new Date(Math.min(new Date(to).getTime(), generationEnd.getTime()));
+
+    await generateSlotsForWindow(teacherId, new Date(from), cappedTo);
   }
 
+  // Still QUERY the full requested range — slots beyond 8 weeks that were
+  // generated in earlier calls (e.g. when the rule was first created) will
+  // still be returned. Only generation is capped, not the read.
   const filter: any = { teacherId };
   if (from || to) {
     filter.startTime = {};
@@ -33,7 +45,7 @@ export async function GET(req: Request) {
   }
 
   const slots = await AvailabilitySlot.find(filter)
-    .populate("bookedBy", "name email")  // ← this is the fix for problem 3
+    .populate("bookedBy", "name email")
     .sort({ startTime: 1 });
 
   return NextResponse.json(slots);
