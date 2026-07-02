@@ -18,12 +18,14 @@ export async function generateSlotsForWindow(
       Math.min(rule.ruleEndDate.getTime(), windowEnd.getTime())
     );
 
+    // Iterate day by day through the range
     for (
       let day = new Date(rangeStart);
       day <= rangeEnd;
-      day.setDate(day.getDate() + 1)
+      day.setUTCDate(day.getUTCDate() + 1)
     ) {
-      if (!rule.daysOfWeek.includes(day.getDay())) continue;
+      // Use UTC day-of-week so server timezone doesn't shift the day
+      if (!rule.daysOfWeek.includes(day.getUTCDay())) continue;
 
       const [startHour, startMin] = rule.startTime.split(":").map(Number);
       const [endHour, endMin] = rule.endTime.split(":").map(Number);
@@ -35,19 +37,37 @@ export async function generateSlotsForWindow(
         slotStartMin + rule.slotDurationMinutes <= windowEndMinutes;
         slotStartMin += rule.slotDurationMinutes
       ) {
-        const slotStart = new Date(day);
-        slotStart.setHours(0, 0, 0, 0);
-        slotStart.setMinutes(slotStartMin);
+        const slotStartHour = Math.floor(slotStartMin / 60);
+        const slotStartMinute = slotStartMin % 60;
 
-        const slotEnd = new Date(slotStart);
-        slotEnd.setMinutes(slotEnd.getMinutes() + rule.slotDurationMinutes);
+        // Use Date.UTC so the stored timestamp reflects the teacher's intended
+        // wall-clock time regardless of what timezone the server runs in.
+        // e.g. "14:00" becomes 2026-06-29T14:00:00.000Z, not shifted by server TZ.
+        const slotStart = new Date(
+          Date.UTC(
+            day.getUTCFullYear(),
+            day.getUTCMonth(),
+            day.getUTCDate(),
+            slotStartHour,
+            slotStartMinute,
+            0,
+            0
+          )
+        );
 
-        const timeStr = `${String(slotStart.getHours()).padStart(2, "0")}:${String(
-          slotStart.getMinutes()
+        const slotEnd = new Date(
+          slotStart.getTime() + rule.slotDurationMinutes * 60 * 1000
+        );
+
+        // Time string in HH:MM format — matches what DefaultBooking.time stores
+        const timeStr = `${String(slotStartHour).padStart(2, "0")}:${String(
+          slotStartMinute
         ).padStart(2, "0")}`;
 
+        // Check if a default booking claims this exact day-of-week + time
         const matchingDefault = defaults.find(
-          (d) => d.dayOfWeek === slotStart.getDay() && d.time === timeStr
+          (d) =>
+            d.dayOfWeek === slotStart.getUTCDay() && d.time === timeStr
         );
 
         const existing = await AvailabilitySlot.findOne({
@@ -56,14 +76,10 @@ export async function generateSlotsForWindow(
         });
 
         if (existing) {
-          // THE KEY FIX: if a default now claims this slot but it's still "open",
-          // update it in place — this handles the case where a default was set
-          // AFTER the slot was already generated as open.
-          if (
-            matchingDefault &&
-            existing.status === "open" &&
-            !existing.bookedBy
-          ) {
+          // KEY FIX: if a default now claims this slot but it's still open,
+          // update it — handles the case where a default was set AFTER the
+          // slot was already generated as open.
+          if (matchingDefault && existing.status === "open" && !existing.bookedBy) {
             existing.status = "booked";
             existing.bookedBy = matchingDefault.studentId;
             existing.isDefaultBooking = true;
@@ -97,18 +113,19 @@ export async function claimExistingOpenSlotsForDefault(
 ) {
   const now = new Date();
 
-  // Find all future open slots for this teacher on this day+time
-  const futureSlotsOnThisDay = await AvailabilitySlot.find({
+  // Find all future open slots for this teacher
+  const futureOpenSlots = await AvailabilitySlot.find({
     teacherId,
     status: "open",
     startTime: { $gte: now },
   });
 
-  const matching = futureSlotsOnThisDay.filter((slot) => {
-    const slotDay = slot.startTime.getDay();
-    const slotTime = `${String(slot.startTime.getHours()).padStart(2, "0")}:${String(
-      slot.startTime.getMinutes()
-    ).padStart(2, "0")}`;
+  // Filter to slots matching the default's day-of-week and time using UTC
+  const matching = futureOpenSlots.filter((slot) => {
+    const slotDay = slot.startTime.getUTCDay();
+    const slotHour = String(slot.startTime.getUTCHours()).padStart(2, "0");
+    const slotMin = String(slot.startTime.getUTCMinutes()).padStart(2, "0");
+    const slotTime = `${slotHour}:${slotMin}`;
     return slotDay === dayOfWeek && slotTime === time;
   });
 

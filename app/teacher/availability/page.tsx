@@ -79,42 +79,37 @@ export default function TeacherAvailabilityPage() {
     oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
 
     const [rulesRes, defaultsRes, slotsRes, linksRes] = await Promise.all([
-      fetch("/api/availability-rules"),
-      fetch("/api/default-bookings"),
-      fetch(`/api/availability?teacherId=${tid}&from=${today.toISOString()}&to=${oneYearOut.toISOString()}`),
-      fetch("/api/meeting-links"),
+      fetch("/api/availability-rules").catch(() => null),
+      fetch("/api/default-bookings").catch(() => null),
+      fetch(`/api/availability?teacherId=${tid}&from=${today.toISOString()}&to=${oneYearOut.toISOString()}`).catch(() => null),
+      fetch("/api/meeting-links").catch(() => null),
     ]);
 
-    const rulesData: Rule[] = await rulesRes.json();
-    const defaultsData: DefaultBookingEntry[] = await defaultsRes.json();
-    const allSlots: BookedSlot[] = await slotsRes.json();
-    const linksData: MeetingLink[] = await linksRes.json();
+    const rulesData: Rule[] = rulesRes?.ok ? await rulesRes.json() : [];
+    const defaultsData: DefaultBookingEntry[] = defaultsRes?.ok ? await defaultsRes.json() : [];
+    const allSlots: BookedSlot[] = slotsRes?.ok ? await slotsRes.json() : [];
+    const linksData: MeetingLink[] = linksRes?.ok ? await linksRes.json() : [];
 
     setRules(rulesData);
     setDefaults(defaultsData);
     setBookedSlots(allSlots.filter((s) => s.status === "booked"));
     setMeetingLinks(linksData);
 
-    // Build unique student list from defaults + bookings
     const studentMap = new Map<string, StudentEntry>();
     defaultsData.forEach((d) => {
-      if (d.studentId?._id) {
-        studentMap.set(d.studentId._id, d.studentId);
-      }
+      if (d.studentId?._id) studentMap.set(d.studentId._id, d.studentId);
     });
     allSlots.forEach((s) => {
-      if (s.bookedBy?._id) {
-        studentMap.set(s.bookedBy._id, s.bookedBy);
-      }
+      if (s.bookedBy?._id) studentMap.set(s.bookedBy._id, s.bookedBy);
     });
     setAllStudents(Array.from(studentMap.values()));
 
     setIsLoading(false);
   }
 
-  useEffect(() => {
-    loadData();
-  }, []);
+    useEffect(() => {
+      loadData();
+    }, []);
 
   function toggleDay(day: number) {
     setSelectedDays((prev) =>

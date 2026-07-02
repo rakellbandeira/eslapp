@@ -72,9 +72,9 @@ export default function SchedulePage() {
       .filter((s) => {
         const slotDate = new Date(s.startTime);
         return (
-          slotDate.getDate() === date.getDate() &&
-          slotDate.getMonth() === date.getMonth() &&
-          slotDate.getFullYear() === date.getFullYear() &&
+          slotDate.getUTCDate() === date.getDate() &&
+          slotDate.getUTCMonth() === date.getMonth() &&
+          slotDate.getUTCFullYear() === date.getFullYear() &&
           s.status !== "deactivated"
         );
       })
@@ -276,6 +276,7 @@ export default function SchedulePage() {
               const timeLabel = new Date(slot.startTime).toLocaleTimeString(undefined, {
                 hour: "numeric",
                 minute: "2-digit",
+                timeZone: "UTC",
               });
 
               return (
