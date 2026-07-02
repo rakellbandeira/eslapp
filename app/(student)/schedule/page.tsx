@@ -7,7 +7,8 @@ interface Slot {
   startTime: string;
   endTime: string;
   status: "open" | "booked" | "deactivated";
-  bookedBy?: string;
+  // bookedBy is now an object (populated) or a plain string id — handle both
+  bookedBy?: { _id: string; name: string; email: string } | string;
   isDefaultBooking: boolean;
 }
 
@@ -18,6 +19,13 @@ interface DefaultBookingEntry {
 }
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// Extract the bookedBy ID regardless of whether it's a populated object or a plain string
+function getBookedById(bookedBy: Slot["bookedBy"]): string | null {
+  if (!bookedBy) return null;
+  if (typeof bookedBy === "string") return bookedBy;
+  return bookedBy._id;
+}
 
 export default function SchedulePage() {
   const [teacherId, setTeacherId] = useState<string | null>(null);
@@ -71,6 +79,9 @@ export default function SchedulePage() {
     return monthSlots
       .filter((s) => {
         const slotDate = new Date(s.startTime);
+        // Compare using UTC values — slots are stored as UTC timestamps
+        // and the calendar grid days are local, but since we use Date.UTC
+        // in generation, the UTC date IS the intended calendar date
         return (
           slotDate.getUTCDate() === date.getDate() &&
           slotDate.getUTCMonth() === date.getMonth() &&
@@ -85,8 +96,6 @@ export default function SchedulePage() {
     return myDefaults.some((d) => d.dayOfWeek === date.getDay());
   }
 
-  // Plain one-time booking — used for normal "Book" clicks and as the second
-  // half of "Set as default" (see handleSetAsDefault below).
   async function bookSlotDirectly(slotId: string, markAsDefaultFlag: boolean) {
     const res = await fetch("/api/bookings", {
       method: "POST",
@@ -125,26 +134,23 @@ export default function SchedulePage() {
     }
   }
 
-  // "Set as default" has TWO required effects, both must happen:
-  // 1. Create the standing DefaultBooking record (covers all FUTURE weeks,
-  //    via the generation engine already running on the backend).
-  // 2. Book THIS specific slot right now, with isDefaultBooking flagged true,
-  //    so today's calendar reflects it immediately instead of waiting for
-  //    a future-generated occurrence to show it.
   async function handleSetAsDefault(slot: Slot) {
     setError("");
     setActionSlotId(slot._id);
 
     try {
       const slotDate = new Date(slot.startTime);
-      const time = `${String(slotDate.getHours()).padStart(2, "0")}:${String(
-        slotDate.getMinutes()
+      // FIX: use UTC hours/minutes — slots are stored in UTC, so the
+      // intended time is in UTC, not the local timezone
+      const time = `${String(slotDate.getUTCHours()).padStart(2, "0")}:${String(
+        slotDate.getUTCMinutes()
       ).padStart(2, "0")}`;
+      const dayOfWeek = slotDate.getUTCDay();
 
       const defaultRes = await fetch("/api/default-bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacherId, dayOfWeek: slotDate.getDay(), time }),
+        body: JSON.stringify({ teacherId, dayOfWeek, time }),
       });
       const defaultData = await defaultRes.json();
       if (!defaultRes.ok) {
@@ -171,7 +177,11 @@ export default function SchedulePage() {
   if (isLoading) return <p className="p-8 text-gray-500">Loading calendar...</p>;
 
   if (!teacherId) {
-    return <p className="p-8 text-gray-500">No teacher found. Make sure you're enrolled in a course.</p>;
+    return (
+      <p className="p-8 text-gray-500">
+        No teacher found. Make sure you're enrolled in a course.
+      </p>
+    );
   }
 
   const firstOfMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
@@ -197,7 +207,10 @@ export default function SchedulePage() {
       {swappingFromSlotId && (
         <div className="mb-4 flex items-center justify-between rounded-md bg-blue-50 px-3 py-2">
           <span className="text-sm text-blue-800">Pick a new time to swap into.</span>
-          <button onClick={() => setSwappingFromSlotId(null)} className="text-sm text-blue-600 hover:underline">
+          <button
+            onClick={() => setSwappingFromSlotId(null)}
+            className="text-sm text-blue-600 hover:underline"
+          >
             Cancel swap
           </button>
         </div>
@@ -205,7 +218,9 @@ export default function SchedulePage() {
 
       <div className="mb-4 flex items-center justify-between">
         <button
-          onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
+          onClick={() =>
+            setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))
+          }
           className="rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50"
         >
           ← Prev
@@ -214,7 +229,9 @@ export default function SchedulePage() {
           {viewMonth.toLocaleString(undefined, { month: "long", year: "numeric" })}
         </h2>
         <button
-          onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
+          onClick={() =>
+            setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))
+          }
           className="rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50"
         >
           Next →
@@ -232,7 +249,8 @@ export default function SchedulePage() {
 
           const daySlots = slotsForDate(date);
           const hasOpen = daySlots.some((s) => s.status === "open");
-          const hasMine = daySlots.some((s) => s.bookedBy === myUserId);
+          // FIX: use getBookedById() to handle both populated object and plain string
+          const hasMine = daySlots.some((s) => getBookedById(s.bookedBy) === myUserId);
           const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
           const isSelected =
             !!selectedDate &&
@@ -266,13 +284,19 @@ export default function SchedulePage() {
       {selectedDate && (
         <div>
           <h3 className="mb-3 font-medium text-gray-900">
-            {selectedDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+            {selectedDate.toLocaleDateString(undefined, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
           </h3>
 
           <ul className="space-y-2">
             {slotsForDate(selectedDate).map((slot) => {
-              const isMine = slot.bookedBy === myUserId;
+              // FIX: compare using the extracted ID, not direct equality with object
+              const isMine = getBookedById(slot.bookedBy) === myUserId;
               const isOpen = slot.status === "open";
+              // FIX: use UTC hours for display — stored time IS the intended time in UTC
               const timeLabel = new Date(slot.startTime).toLocaleTimeString(undefined, {
                 hour: "numeric",
                 minute: "2-digit",
