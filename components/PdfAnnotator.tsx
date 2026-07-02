@@ -661,7 +661,7 @@ function TextAnnotationBox({
         className="pointer-events-none absolute inset-0 rounded border-2 transition-colors"
         style={{ borderColor: isHoveringMoveZone ? "#3b82f6" : "#93c5fd" }}
       />
-
+{/* 
       {!readOnly && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <span
@@ -671,7 +671,7 @@ function TextAnnotationBox({
             ✛
           </span>
         </div>
-      )}
+      )} */}
 
       <textarea
         ref={textareaRef}
@@ -700,14 +700,14 @@ function TextAnnotationBox({
               e.stopPropagation();
               onRemove(annotation.id);
             }}
-            className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white shadow"
+            className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[7px] text-white shadow"
           >
             ✕
           </button>
           <div
             onMouseDown={handleResizeStart}
             onTouchStart={handleResizeStart}
-            className="absolute -bottom-1 -right-1 flex h-5 w-5 cursor-nwse-resize items-center justify-center rounded-sm bg-blue-500 shadow"
+            className="absolute -bottom-1 -right-1 flex h-3 w-3 cursor-nwse-resize items-center justify-center rounded-sm bg-blue-500 shadow"
             title="Drag to resize"
           >
             <span className="text-xs text-white leading-none">⤡</span>
