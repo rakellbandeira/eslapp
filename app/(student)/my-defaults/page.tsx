@@ -9,6 +9,14 @@ interface DefaultBookingEntry {
   teacherId: string;
 }
 
+interface ExtraBooking {
+  _id: string;
+  startTime: string;
+  endTime: string;
+  isDefaultBooking: boolean;
+  teacherId: { name: string; email: string } | string;
+}
+
 interface MeetingLink {
   url: string;
 }
@@ -24,24 +32,41 @@ const DAY_NAMES = [
 ];
 
 const primaryDark = "#7B5EA7";
+const accent = "#3DB89A";
 const danger = "#E57373";
 const cardStyle = { backgroundColor: "#FFFFFF", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" };
 
 export default function MyDefaultsPage() {
   const [defaults, setDefaults] = useState<DefaultBookingEntry[]>([]);
+  const [extraBookings, setExtraBookings] = useState<ExtraBooking[]>([]);
   const [meetingLink, setMeetingLink] = useState<MeetingLink | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancellingExtra, setCancellingExtra] = useState<string | null>(null);
 
   async function load() {
     setIsLoading(true);
-    const [defaultsRes, linkRes] = await Promise.all([
+    const [defaultsRes, bookingsRes, linkRes] = await Promise.all([
       fetch("/api/default-bookings"),
+      fetch("/api/bookings"),
       fetch("/api/meeting-links"),
     ]);
     const defaultsData = await defaultsRes.json();
+    const bookingsData = await bookingsRes.json();
     const linkData = await linkRes.json();
+
     setDefaults(Array.isArray(defaultsData) ? defaultsData : []);
+
+    // Filter to only non-default (one-off) future bookings
+    const now = new Date();
+    const extras = Array.isArray(bookingsData)
+      ? bookingsData.filter(
+          (b: ExtraBooking) =>
+            !b.isDefaultBooking && new Date(b.startTime) >= now
+        )
+      : [];
+    setExtraBookings(extras);
+
     setMeetingLink(linkData && linkData.url ? linkData : null);
     setIsLoading(false);
   }
@@ -50,10 +75,21 @@ export default function MyDefaultsPage() {
     load();
   }, []);
 
-  async function handleCancel(id: string) {
+  async function handleCancelDefault(id: string) {
     setCancelling(id);
     await fetch(`/api/default-bookings/${id}`, { method: "DELETE" });
     setCancelling(null);
+    load();
+  }
+
+  async function handleCancelExtra(slotId: string) {
+    const confirmed = window.confirm(
+      "Cancel this booking? The slot will become available to other students."
+    );
+    if (!confirmed) return;
+    setCancellingExtra(slotId);
+    await fetch(`/api/bookings/${slotId}`, { method: "DELETE" });
+    setCancellingExtra(null);
     load();
   }
 
@@ -76,8 +112,11 @@ export default function MyDefaultsPage() {
       </p>
 
       {/* ── Standing defaults ── */}
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        My standing weekly time
+      </h2>
       {defaults.length === 0 ? (
-        <div className="rounded-xl p-8 text-center" style={cardStyle}>
+        <div className="mb-8 rounded-xl p-8 text-center" style={cardStyle}>
           <p className="text-lg font-medium text-gray-500">No standing classes yet.</p>
           <p className="mt-1 text-sm text-gray-400">
             Go to Schedule and click "Set as default" on an available time slot.
@@ -91,7 +130,7 @@ export default function MyDefaultsPage() {
           </a>
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="mb-8 space-y-3">
           {defaults.map((d) => (
             <li
               key={d._id}
@@ -105,7 +144,7 @@ export default function MyDefaultsPage() {
                 <p className="text-sm text-gray-400">Repeats weekly</p>
               </div>
               <button
-                onClick={() => handleCancel(d._id)}
+                onClick={() => handleCancelDefault(d._id)}
                 disabled={cancelling === d._id}
                 className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 style={{ backgroundColor: danger }}
@@ -117,8 +156,64 @@ export default function MyDefaultsPage() {
         </ul>
       )}
 
+      {/* ── Extra one-off bookings ── */}
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        Extra booked classes
+      </h2>
+      {extraBookings.length === 0 ? (
+        <div className="mb-8 rounded-xl px-6 py-4" style={cardStyle}>
+          <p className="text-sm text-gray-400">
+            No extra classes booked. You can book a one-off class from the{" "}
+            <a href="/schedule" className="underline" style={{ color: primaryDark }}>
+              Schedule
+            </a>{" "}
+            page.
+          </p>
+        </div>
+      ) : (
+        <ul className="mb-8 space-y-3">
+          {extraBookings.map((b) => (
+            <li
+              key={b._id}
+              className="flex items-center justify-between rounded-xl px-6 py-4"
+              style={{
+                ...cardStyle,
+                borderLeft: `4px solid ${accent}`,
+              }}
+            >
+              <div>
+                <p className="font-semibold" style={{ color: "#1A202C" }}>
+                  {new Date(b.startTime).toLocaleString(undefined, {
+                    weekday: "long",
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </p>
+                <p className="text-sm text-gray-400">
+                  Until{" "}
+                  {new Date(b.endTime).toLocaleTimeString(undefined, {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+              <button
+                onClick={() => handleCancelExtra(b._id)}
+                disabled={cancellingExtra === b._id}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: danger }}
+              >
+                {cancellingExtra === b._id ? "Cancelling..." : "Cancel"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* ── Video call link ── */}
-      <div className="mt-10">
+      <div className="mt-4">
         <h2 className="mb-4 text-xl font-bold" style={{ color: "#1A202C" }}>
           My Class Link
         </h2>
