@@ -221,7 +221,7 @@ export default function SchedulePage() {
           onClick={() =>
             setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))
           }
-          className="rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50"
+          className="rounded-md border border-purple-300 px-3 py-1 text-sm hover:bg-purple-50"
         >
           ← Prev
         </button>
@@ -232,7 +232,7 @@ export default function SchedulePage() {
           onClick={() =>
             setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))
           }
-          className="rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50"
+          className="rounded-md border border-purple-300 px-3 py-1 text-sm hover:bg-purple-50"
         >
           Next →
         </button>
