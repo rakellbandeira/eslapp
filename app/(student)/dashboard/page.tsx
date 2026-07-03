@@ -46,7 +46,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">
-          {enrollments.map((e) => (
+          {enrollments.filter((e: any) => e.courseId).map((e) => (
             <li key={e._id}>
               <Link
                 href={`/courses/${e.courseId._id}`}

@@ -17,10 +17,11 @@ export async function GET(req: Request) {
   await connectDB();
 
   if (role === "student") {
-    // A student sees only their own active enrollments
     const enrollments = await Enrollment.find({ studentId: userId, status: "active" })
       .populate("courseId");
-    return NextResponse.json(enrollments);
+    // Filter out enrollments where the course was deleted (courseId populates as null)
+    const valid = enrollments.filter((e) => e.courseId !== null);
+    return NextResponse.json(valid);
   }
 
   // A teacher sees all enrollments for courses they own
