@@ -2,10 +2,11 @@ import mongoose, { Schema, models, model } from "mongoose";
 
 export interface IPdfExercise {
   _id: mongoose.Types.ObjectId;
-  submoduleId: mongoose.Types.ObjectId; // ref Submodule._id, one-to-one
-  fileUrl: string;     // path/URL to the source PDF (local disk path for now)
-  fileName: string;    // original filename, for display
-  totalPoints?: number; // optional — teacher can assign a max score for grading
+  submoduleId: mongoose.Types.ObjectId;
+  fileUrl: string;
+  fileName: string;
+  totalPoints?: number;
+  assignmentMessage?: string; 
   updatedAt: Date;
 }
 
@@ -15,6 +16,7 @@ const PdfExerciseSchema = new Schema<IPdfExercise>({
   fileName: { type: String, required: true },
   totalPoints: { type: Number },
   updatedAt: { type: Date, default: Date.now },
+  assignmentMessage: { type: String, default: "" },
 });
 
 export const PdfExercise = models.PdfExercise || model<IPdfExercise>("PdfExercise", PdfExerciseSchema);

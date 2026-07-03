@@ -59,6 +59,24 @@ export default function ModuleDetailPage() {
     if (moduleId) loadData();
   }, [moduleId]);
 
+  async function handleReorder(submoduleId: string, direction: -1 | 1) {
+    const index = submodules.findIndex((s) => s._id === submoduleId);
+    const target = index + direction;
+    if (target < 0 || target >= submodules.length) return;
+
+    const reordered = [...submodules];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+
+    // Optimistically update UI immediately
+    setSubmodules(reordered);
+
+    await fetch(`/api/modules/${moduleId}/submodules/reorder`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: reordered.map((s) => s._id) }),
+    });
+  }
+
   async function handleAddSubmodule(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -234,6 +252,22 @@ export default function ModuleDetailPage() {
               {editingSubmoduleId !== sub._id && (
                 <>
                   <button
+                    onClick={() => handleReorder(sub._id, -1)}
+                    disabled={index === 0}
+                    className="rounded px-2 py-2 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                    title="Move up"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    onClick={() => handleReorder(sub._id, 1)}
+                    disabled={index === submodules.length - 1}
+                    className="rounded px-2 py-2 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                    title="Move down"
+                  >
+                    ↓
+                  </button>
+                  <button
                     onClick={() => {
                       setEditingSubmoduleId(sub._id);
                       setEditingSubmoduleTitle(sub.title);
@@ -244,6 +278,9 @@ export default function ModuleDetailPage() {
                   >
                     Edit
                   </button>
+
+                    
+
                   <button
                     onClick={() => handleDeleteSubmodule(sub._id)}
                     className="rounded-lg px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
@@ -258,11 +295,6 @@ export default function ModuleDetailPage() {
           ))}
 
           
-          
-
-
-
-
         </ul>
       )}
     </div>

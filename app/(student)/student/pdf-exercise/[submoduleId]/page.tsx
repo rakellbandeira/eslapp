@@ -14,6 +14,7 @@ const PdfAnnotator = dynamic(() => import("@/components/PdfAnnotator"), {
 interface PdfExerciseData {
   fileUrl: string;
   fileName: string;
+  assignmentMessage?: string;
 }
 
 export default function StudentPdfExercisePage() {
@@ -136,6 +137,16 @@ export default function StudentPdfExercisePage() {
           </button>
         </div>
       </div>
+
+      {exercise.assignmentMessage && (
+        <div
+          className="mb-4 rounded-lg border-l-4 px-4 py-3 text-sm text-gray-700"
+          style={{ borderColor: "#9370BE", backgroundColor: "#F5F0FF" }}
+        >
+          <p className="font-medium mb-1" style={{ color: "#7B5EA7" }}>Assignment</p>
+          <p className="whitespace-pre-wrap">{exercise.assignmentMessage}</p>
+        </div>
+      )}
 
       <PdfAnnotator
         fileUrl={exercise.fileUrl}

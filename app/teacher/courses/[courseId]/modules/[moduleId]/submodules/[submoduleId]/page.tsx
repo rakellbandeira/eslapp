@@ -288,6 +288,7 @@ function QuizEditor({ submoduleId }: { submoduleId: string }) {
     setTimeout(() => setSaveMessage(""), 2000);
   }
 
+  
   if (isLoading) return <p className="text-gray-500">Loading quiz...</p>;
 
   return (
@@ -397,6 +398,9 @@ function PdfExerciseEditor({ submoduleId }: { submoduleId: string }) {
   const [isUploading, setIsUploading] = useState(false);
   const [totalPoints, setTotalPoints] = useState<string>("");
   const [error, setError] = useState("");
+  const [assignmentMessage, setAssignmentMessage] = useState("");
+  const [isSavingMessage, setIsSavingMessage] = useState(false);
+  const [messageSaved, setMessageSaved] = useState(false);
 
   useEffect(() => {
     fetch(`/api/submodules/${submoduleId}/pdf-exercise`)
@@ -404,9 +408,28 @@ function PdfExerciseEditor({ submoduleId }: { submoduleId: string }) {
       .then((data) => {
         setExercise(data);
         if (data?.totalPoints) setTotalPoints(String(data.totalPoints));
+        if (data?.assignmentMessage) setAssignmentMessage(data.assignmentMessage);
         setIsLoading(false);
       });
   }, [submoduleId]);
+
+  async function handleSaveMessage() {
+    if (!exercise) return;
+    setIsSavingMessage(true);
+    await fetch(`/api/submodules/${submoduleId}/pdf-exercise`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileUrl: exercise.fileUrl,
+        fileName: exercise.fileName,
+        totalPoints: totalPoints ? parseInt(totalPoints) : undefined,
+        assignmentMessage,
+      }),
+    });
+    setIsSavingMessage(false);
+    setMessageSaved(true);
+    setTimeout(() => setMessageSaved(false), 2000);
+  }
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -491,6 +514,31 @@ function PdfExerciseEditor({ submoduleId }: { submoduleId: string }) {
 
       {isUploading && <p className="mt-2 text-sm text-gray-500">Uploading...</p>}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700">
+          Assignment message
+          <span className="ml-1 text-xs text-gray-400">(shown to students above the PDF)</span>
+        </label>
+        <textarea
+          rows={4}
+          value={assignmentMessage}
+          onChange={(e) => setAssignmentMessage(e.target.value)}
+          placeholder="Write instructions or context for this exercise..."
+          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2"
+        />
+        <div className="mt-1 flex items-center gap-2">
+          <button
+            onClick={handleSaveMessage}
+            disabled={isSavingMessage}
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            style={{ backgroundColor: "#7B5EA7" }}
+          >
+            {isSavingMessage ? "Saving..." : "Save message"}
+          </button>
+          {messageSaved && <span className="text-xs text-green-600">Saved.</span>}
+        </div>
+      </div>
 
       <div className="mt-4 flex items-center gap-2">
         <label className="text-sm text-gray-600">Total points (optional):</label>

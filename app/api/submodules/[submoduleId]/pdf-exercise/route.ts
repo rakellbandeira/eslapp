@@ -59,7 +59,7 @@ export async function PUT(
   }
 
   try {
-    const { fileUrl, fileName, totalPoints } = await req.json();
+    const { fileUrl, fileName, totalPoints, assignmentMessage } = await req.json();
 
     if (!fileUrl || !fileName) {
       return NextResponse.json({ error: "fileUrl and fileName are required." }, { status: 400 });
@@ -67,7 +67,7 @@ export async function PUT(
 
     const exercise = await PdfExercise.findOneAndUpdate(
       { submoduleId },
-      { fileUrl, fileName, totalPoints, updatedAt: new Date() },
+      { fileUrl, fileName, totalPoints, assignmentMessage: assignmentMessage ?? "", updatedAt: new Date() },      
       { upsert: true, new: true }
     );
 
