@@ -707,10 +707,10 @@ function TextAnnotationBox({
           <div
             onMouseDown={handleResizeStart}
             onTouchStart={handleResizeStart}
-            className="absolute -bottom-1 -right-1 flex h-2 w-2 cursor-nwse-resize items-center justify-center rounded-sm bg-blue-500 shadow"
+            className="absolute -bottom-1 -right-1 flex h-3 w-3 cursor-nwse-resize items-center justify-center rounded-sm bg-blue-500 shadow"
             title="Drag to resize"
           >
-            <span className="text-xs text-white leading-none">⤡</span>
+            <span className="text-[7px] text-white leading-none">⤡</span>
           </div>
         </>
       )}
