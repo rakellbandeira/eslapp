@@ -710,7 +710,7 @@ function TextAnnotationBox({
             className="absolute -bottom-1 -right-1 flex h-3 w-3 cursor-nwse-resize items-center justify-center rounded-sm bg-blue-500 shadow"
             title="Drag to resize"
           >
-            <span className="text-[7px] text-white leading-none">⤡</span>
+            <span className="text-[8px] text-white leading-none">⤡</span>
           </div>
         </>
       )}
