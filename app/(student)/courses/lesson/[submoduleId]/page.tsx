@@ -67,7 +67,7 @@ export default function LessonPage() {
   if (isLoading) return <p className="p-8 text-gray-500">Loading...</p>;
 
   return (
-    <div className="mx-auto max-w-3xl p-8">
+    <div className="mx-auto max-w-4xl p-8">
       {/* Breadcrumb */}
       <nav className="mb-4 flex items-center gap-2 text-sm text-gray-500">
         <Link href="/dashboard" className="hover:underline" style={{ color: "#7B5EA7" }}>
