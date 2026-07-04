@@ -438,35 +438,54 @@ function PdfExerciseEditor({ submoduleId }: { submoduleId: string }) {
     setError("");
     setIsUploading(true);
 
-    const formData = new FormData();
-    formData.append("file", file);
+    try {
+      const presignRes = await fetch("/api/upload/pdf/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type,
+        }),
+      });
 
-    const uploadRes = await fetch("/api/upload/pdf", {
-      method: "POST",
-      body: formData,
-    });
+      const presignData = await presignRes.json();
+      if (!presignRes.ok) {
+        setError(presignData.error || "Could not prepare upload.");
+        setIsUploading(false);
+        return;
+      }
 
-    const uploadData = await uploadRes.json();
+    
+      const uploadRes = await fetch(presignData.presignedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
 
-    if (!uploadRes.ok) {
-      setError(uploadData.error || "Upload failed.");
+      if (!uploadRes.ok) {
+        setError("Upload to storage failed. Please try again.");
+        setIsUploading(false);
+        return;
+      }
+
+      const saveRes = await fetch(`/api/submodules/${submoduleId}/pdf-exercise`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileUrl: presignData.fileUrl,
+          fileName: presignData.fileName,
+          totalPoints: totalPoints ? parseInt(totalPoints) : undefined,
+        }),
+      });
+
+      const saved = await saveRes.json();
+      setExercise(saved);
       setIsUploading(false);
-      return;
+    } catch (err) {
+      console.error("Upload error:", err);
+      setError("Upload failed. Please try again.");
+      setIsUploading(false);
     }
-
-    const saveRes = await fetch(`/api/submodules/${submoduleId}/pdf-exercise`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fileUrl: uploadData.fileUrl,
-        fileName: uploadData.fileName,
-        totalPoints: totalPoints ? parseInt(totalPoints) : undefined,
-      }),
-    });
-
-    const saved = await saveRes.json();
-    setExercise(saved);
-    setIsUploading(false);
   }
 
   async function handlePointsBlur() {
