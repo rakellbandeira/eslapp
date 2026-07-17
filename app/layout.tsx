@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Learning Platform",
-  description: "Course management and student progress",
+  title: "ESL Pals - Learning Platform",
+  description: "Learn English at your own pace",
 };
 
 export default function RootLayout({
